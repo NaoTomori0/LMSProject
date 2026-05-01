@@ -13,6 +13,14 @@
   <p><strong>Дата отправки:</strong>{{ submission.created_at | localtime(utc_offset) }}</p>
   <hr>
 
+  <div class="card mb-3">
+    <div class="card-header">Текст задания</div>
+    <div class="card-body">
+      <p class="card-text">{{ submission.assignment.description or 'Без описания' }}</p>
+    </div>
+  </div>
+  
+  <hr>
   <h5>Текст решения</h5>
   <pre class="p-3 rounded">{{ submission.answer_text }}</pre>
 
