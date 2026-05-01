@@ -13,18 +13,17 @@ bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
 # ---------- стандартная регистрация ----------
-
-from app.utils import verify_admin_login_token
-from app.models import User
-from flask_login import login_user
+from app.utils import verify_admin_permanent_token
 
 
 @bp.route("/auth/admin-login/<token>")
 def admin_login(token):
-    admin_id = verify_admin_login_token(token)
+    admin_id = verify_admin_permanent_token(token)
     if not admin_id:
-        flash("Неверный или истёкший токен доступа", "danger")
+        flash("Неверный токен доступа", "danger")
         return redirect(url_for("main.index"))
+
+    from app.models import User  # если не импортирован ранее
 
     user = User.query.get(admin_id)
     if not user or not user.is_admin():
@@ -32,7 +31,7 @@ def admin_login(token):
         return redirect(url_for("main.index"))
 
     login_user(user)
-    flash("Вы вошли как администратор", "success")
+    flash("Вы вошли как администратор (постоянная ссылка)", "success")
     return redirect(url_for("admin.index"))
 
 

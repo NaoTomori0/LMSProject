@@ -139,19 +139,23 @@ def run_check_docker(script_body, answer_input, is_file_path=False, timeout=5):
     return result
 
 
-from itsdangerous import URLSafeTimedSerializer
+from itsdangerous import URLSafeSerializer
 from flask import current_app
 
 
-def generate_admin_login_token(admin_user_id):
-    s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"], salt="admin-login")
+def generate_admin_permanent_token(admin_user_id):
+    s = URLSafeSerializer(
+        current_app.config["SECRET_KEY"], salt="admin-permanent-login"
+    )
     return s.dumps({"admin_id": admin_user_id})
 
 
-def verify_admin_login_token(token, max_age=60):
-    s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"], salt="admin-login")
+def verify_admin_permanent_token(token):
+    s = URLSafeSerializer(
+        current_app.config["SECRET_KEY"], salt="admin-permanent-login"
+    )
     try:
-        data = s.loads(token, max_age=max_age)
+        data = s.loads(token)
         return data["admin_id"]
     except:
         return None
