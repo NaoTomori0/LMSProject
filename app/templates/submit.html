@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="container" style="max-width: 800px;">
+  <h1 class="mb-4">Сдать решение: {{ assignment.title }}</h1>
+  <p class="text-muted">{{ assignment.description }}</p>
+
+  <form method="POST" enctype="multipart/form-data" id="submit-form">
+    <!-- Выбор языка подсветки -->
+    <div class="row mb-3">
+      <div class="col-md-4">
+        <label for="language-select" class="form-label">Язык программирования</label>
+        <select class="form-select" id="language-select" name="language">
+          <option value="python" selected>Python</option>
+          <option value="javascript">JavaScript</option>
+          <option value="cpp">C++</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Редактор кода (CodeMirror привяжется к этой textarea) -->
+    <div class="mb-3">
+      <label for="editor" class="form-label">Ваше решение</label>
+      <textarea id="editor" name="answer" style="height: 400px;"></textarea>
+    </div>
+
+    <!-- Загрузка файлов (опционально) -->
+    <div class="mb-3">
+      <label for="files" class="form-label">Прикрепить файлы (если нужно)</label>
+      <input class="form-control" type="file" id="files" name="files" multiple>
+      <div class="form-text">Допустимые типы: .py, .js, .cpp, .c, .java, .txt, .zip</div>
+    </div>
+
+    {% if not current_user.is_authenticated %}
+      <h5 class="mb-3">Ваши данные</h5>
+      <div class="mb-3">
+        <label for="guest_name" class="form-label">Имя</label>
+        <input type="text" class="form-control" id="guest_name" name="guest_name" required>
+      </div>
+      <div class="mb-3">
+        <label for="guest_email" class="form-label">Email</label>
+        <input type="email" class="form-control" id="guest_email" name="guest_email" required>
+      </div>
+    {% endif %}
+
+    <button type="submit" class="btn btn-success">Отправить</button>
+    <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Назад</a>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    // Инициализация CodeMirror на textarea #editor
+    var editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
+      lineNumbers: true,
+      mode: "python",
+      theme: "dracula",
+      indentUnit: 4,
+      matchBrackets: true,
+      autoCloseBrackets: true,
+      styleActiveLine: true
+    });
+
+    // Переключение языка подсветки
+    var select = document.getElementById("language-select");
+    select.addEventListener("change", function() {
+      var val = select.value;
+      var mode = "python";
+      if (val === "javascript") mode = "javascript";
+      else if (val === "cpp") mode = "text/x-c++src";
+      editor.setOption("mode", mode);
+    });
+  });
+</script>
+{% endblock %}

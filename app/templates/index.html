@@ -1,0 +1,33 @@
+{% extends "base.html" %} {% block body %}
+<div class="container">
+  <h1 class="mb-4">Доступные задания</h1>
+
+  {% if assignments %}
+  <div class="row row-cols-1 row-cols-md-3 g-4">
+    {% for assignment in assignments %}
+    <div class="col">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">{{ assignment.title }}</h5>
+          <p class="card-text text-muted small">
+            {{ assignment.description[:120] }}{% if
+            assignment.description|length > 120 %}...{% endif %}
+          </p>
+        </div>
+        <div class="card-footer bg-transparent border-top-0">
+          <a
+            href="{{ url_for('main.submit_assignment', assignment_id=assignment.id) }}"
+            class="btn btn-primary btn-sm w-100"
+          >
+            Сдать решение
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="alert alert-info">Пока нет ни одного задания.</div>
+  {% endif %}
+</div>
+{% endblock %}
