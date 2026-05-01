@@ -224,5 +224,5 @@ def resend_code():
     user.verification_code = code
     db.session.commit()
     send_verification_email(user)
-    flash("Новый код отправлен. Проверьте консоль (или почту)", "info")
+    flash("Новый код отправлен. Проверьте или почту", "info")
     return redirect(url_for("auth.verify_email"))
