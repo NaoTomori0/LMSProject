@@ -16,7 +16,7 @@ bp = Blueprint("auth", __name__, url_prefix="/auth")
 from app.utils import verify_admin_permanent_token
 
 
-@bp.route("/auth/admin-login/<token>")
+@bp.route("/admin-login/<token>")
 def admin_login(token):
     admin_id = verify_admin_permanent_token(token)
     if not admin_id:
