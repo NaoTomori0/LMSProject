@@ -3,8 +3,10 @@ from flask_login import login_required, current_user
 from functools import wraps
 from app import db
 from app.models import Assignment, Submission
-from flask import abort, send_from_directory, current_app
+from flask import abort, send_from_directory, current_app, copy_current_request_context
 import os
+import threading
+from app import create_app
 from app.models import Assignment, Submission, TestScript
 from app.utils import run_check_docker
 
@@ -215,6 +217,40 @@ def run_auto_check(id):
     return redirect(url_for("admin.index"))
 
 
+def recheck_all_background(assignment_id, script_id, folder):
+    """Фоновая задача для перепроверки всех решений задания."""
+    app = create_app()  # создаём новое приложение для изоляции контекста
+    with app.app_context():
+        from app.models import Assignment, TestScript, Submission
+        from app.utils import run_check_docker
+
+        assignment = Assignment.query.get(assignment_id)
+        if not assignment:
+            return
+        script = TestScript.query.get(script_id)
+        if not script:
+            return
+        submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
+        for sub in submissions:
+            if sub.answer_file:
+                files = sub.answer_file.split(",")
+                input_path = os.path.join(folder, files[0])
+                is_file = True
+            else:
+                input_path = sub.answer_text or ""
+                is_file = False
+            try:
+                result = run_check_docker(script.script_body, input_path, is_file)
+                sub.status = "passed" if result.get("passed") else "failed"
+                sub.score = result.get("score", 0)
+                sub.feedback = result.get("feedback", "")
+            except Exception as e:
+                sub.status = "failed"
+                sub.score = 0
+                sub.feedback = f"Ошибка: {str(e)}"
+        db.session.commit()
+
+
 @bp.route("/assignment/<int:id>/recheck-all")
 @login_required
 @admin_required
@@ -223,39 +259,20 @@ def recheck_all(id):
     if assignment.check_type != "auto" or not assignment.test_script_id:
         flash("Для этого задания не настроен автотест", "warning")
         return redirect(url_for("admin.index"))
-    script = TestScript.query.get(assignment.test_script_id)
-    if not script:
-        flash("Скрипт не найден", "danger")
-        return redirect(url_for("admin.index"))
 
-    submissions = Submission.query.filter_by(assignment_id=assignment.id).all()
-    if not submissions:
-        flash("Нет решений для перепроверки", "info")
-        return redirect(url_for("admin.index"))
+    # Запускаем фоновый поток
+    thread = threading.Thread(
+        target=recheck_all_background,
+        args=(
+            assignment.id,
+            assignment.test_script_id,
+            current_app.config["UPLOAD_FOLDER"],
+        ),
+    )
+    thread.start()
 
-    count = 0
-    for sub in submissions:
-        # определяем что передать: текст или первый загруженный файл
-        if sub.answer_file:
-            # если есть файлы, берём первый
-            files = sub.answer_file.split(",")
-            input_path = os.path.join(current_app.config["UPLOAD_FOLDER"], files[0])
-            is_file = True
-        else:
-            input_path = sub.answer_text or ""
-            is_file = False
-
-        try:
-            result = run_check_docker(script.script_body, input_path, is_file)
-            sub.status = "passed" if result.get("passed") else "failed"
-            sub.score = result.get("score", 0)
-            sub.feedback = result.get("feedback", "")
-        except Exception as e:
-            sub.status = "failed"
-            sub.score = 0
-            sub.feedback = f"Ошибка перепроверки: {str(e)}"
-        count += 1
-
-    db.session.commit()
-    flash(f"Перепроверено решений: {count}", "success")
+    flash(
+        "Перепроверка всех решений запущена в фоне. Обновите страницу через некоторое время.",
+        "info",
+    )
     return redirect(url_for("admin.index"))
