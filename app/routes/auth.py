@@ -14,28 +14,26 @@ bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 # ---------- стандартная регистрация ----------
 
+from app.utils import verify_admin_login_token
+from app.models import User
+from flask_login import login_user
 
-@bp.route("/admin-login/<token>")
+
+@bp.route("/auth/admin-login/<token>")
 def admin_login(token):
-    required_token = os.getenv("ADMIN_ACCESS_TOKEN")
-    if not required_token or token != required_token:
-        flash("Неверный токен доступа", "danger")
-        return redirect(url_for("auth.log_in"))
+    admin_id = verify_admin_login_token(token)
+    if not admin_id:
+        flash("Неверный или истёкший токен доступа", "danger")
+        return redirect(url_for("main.index"))
 
-    # Ищем администратора
-    admin = User.query.filter_by(role="admin").first()
-    if admin:
-        # Если email не подтверждён, подтверждаем автоматически
-        if not admin.email_verified:
-            admin.email_verified = True
-            admin.verification_code = None
-            db.session.commit()
-        login_user(admin)
-        flash("Вы вошли как администратор", "success")
-        return redirect(url_for("admin.index"))
-    else:
-        flash("Администратор не найден", "danger")
-        return redirect(url_for("auth.log_in"))
+    user = User.query.get(admin_id)
+    if not user or not user.is_admin():
+        flash("Пользователь не является администратором", "danger")
+        return redirect(url_for("main.index"))
+
+    login_user(user)
+    flash("Вы вошли как администратор", "success")
+    return redirect(url_for("admin.index"))
 
 
 @bp.route("/sign_in", methods=["GET", "POST"])

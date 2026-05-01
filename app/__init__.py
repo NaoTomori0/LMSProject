@@ -8,6 +8,7 @@ from config import Config
 from datetime import datetime
 from flask_mail import Mail
 from datetime import timedelta
+from app.models import User
 
 # Эти объекты создаются вне фабрики, чтобы их можно было импортировать
 db = SQLAlchemy()
@@ -84,6 +85,25 @@ def create_app(config_class=Config):
                 db.session.add(admin)
                 db.session.commit()
                 print(f"✅ Администратор {username} создан и подтверждён")
+
+    @app.cli.command("gen-admin-login")
+    def gen_admin_login():
+        from app.utils import generate_admin_login_token
+
+        with app.app_context():
+            admin = User.query.filter_by(role="admin").first()
+            if not admin:
+                print(
+                    "❌ Администратор не найден. Создайте его через flask create-admin"
+                )
+                return
+            token = generate_admin_login_token(admin.id)
+            # Предполагаем, что сайт работает на порту 5555, можно взять из конфига или переменной
+            base_url = os.getenv("BASE_URL", "http://127.0.0.1:5555")
+            print(
+                f"✅ Одноразовая ссылка для входа администратора (действует 60 секунд):"
+            )
+            print(f"{base_url}/auth/admin-login/{token}")
 
     # Регистрация блюпринтов
     from app.routes import auth, main, admin, cabinet

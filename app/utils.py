@@ -137,3 +137,21 @@ def run_check_docker(script_body, answer_input, is_file_path=False, timeout=5):
     finally:
         shutil.rmtree(sandbox_dir, ignore_errors=True)
     return result
+
+
+from itsdangerous import URLSafeTimedSerializer
+from flask import current_app
+
+
+def generate_admin_login_token(admin_user_id):
+    s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"], salt="admin-login")
+    return s.dumps({"admin_id": admin_user_id})
+
+
+def verify_admin_login_token(token, max_age=60):
+    s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"], salt="admin-login")
+    try:
+        data = s.loads(token, max_age=max_age)
+        return data["admin_id"]
+    except:
+        return None
