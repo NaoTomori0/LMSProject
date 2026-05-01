@@ -108,7 +108,7 @@ def run_check_docker(script_body, answer_input, is_file_path=False, timeout=5):
             "--cap-drop=ALL",
             "--security-opt=no-new-privileges",
             DOCKER_IMAGE,
-            "python",
+            "python3.14",
             "/sandbox/checker.py",
             answer_arg,
         ]
