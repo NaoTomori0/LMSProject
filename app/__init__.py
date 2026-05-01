@@ -8,6 +8,9 @@ from config import Config
 from datetime import datetime
 from flask_mail import Mail
 from datetime import timedelta
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Эти объекты создаются вне фабрики, чтобы их можно было импортировать
 db = SQLAlchemy()
