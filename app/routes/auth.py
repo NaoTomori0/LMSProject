@@ -7,11 +7,35 @@ from app.utils import generate_verification_code
 import secrets
 from flask import session  # если ещё нет
 from app.utils import generate_verification_code, send_verification_email
+import os
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
 # ---------- стандартная регистрация ----------
+
+
+@bp.route("/admin-login/<token>")
+def admin_login(token):
+    required_token = os.getenv("ADMIN_ACCESS_TOKEN")
+    if not required_token or token != required_token:
+        flash("Неверный токен доступа", "danger")
+        return redirect(url_for("auth.log_in"))
+
+    # Ищем администратора
+    admin = User.query.filter_by(role="admin").first()
+    if admin:
+        # Если email не подтверждён, подтверждаем автоматически
+        if not admin.email_verified:
+            admin.email_verified = True
+            admin.verification_code = None
+            db.session.commit()
+        login_user(admin)
+        flash("Вы вошли как администратор", "success")
+        return redirect(url_for("admin.index"))
+    else:
+        flash("Администратор не найден", "danger")
+        return redirect(url_for("auth.log_in"))
 
 
 @bp.route("/sign_in", methods=["GET", "POST"])
