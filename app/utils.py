@@ -95,16 +95,19 @@ def run_check_docker(script_body, answer_input, is_file_path=False, timeout=5):
             "docker",
             "run",
             "--rm",
-            "--network=none",  # без сети
-            "--memory=256m",  # лимит памяти
-            "--cpus=0.5",  # пол-ядра
+            "--network",
+            "none",
+            "--memory",
+            "256m",
+            "--cpus",
+            "0.5",
             "--user",
-            f"{os.getuid()}:{os.getgid()}",  # обычный пользователь
+            f"{os.getuid()}:{os.getgid()}",
             "-v",
-            f"{sandbox_dir}:/sandbox:ro",  # наша папка – только для чтения
-            "--read-only",  # вся ФС контейнера только для чтения
+            f"{sandbox_dir}:/sandbox:ro",
+            "--read-only",
             "--tmpfs",
-            "/tmp:rw,noexec,size=32M",  # временная записываемая /tmp
+            "/tmp:rw,exec,size=64M",  # ← разрешили выполнение
             "--cap-drop=ALL",
             "--security-opt=no-new-privileges",
             DOCKER_IMAGE,
