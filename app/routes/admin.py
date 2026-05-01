@@ -4,8 +4,9 @@ from functools import wraps
 from app import db
 from app.models import Assignment, Submission
 from flask import abort, send_from_directory, current_app
-
+import os
 from app.models import Assignment, Submission, TestScript
+from app.utils import run_check_docker
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -211,4 +212,50 @@ def run_auto_check(id):
 
     db.session.commit()
     flash(f"Проверено {count} решений", "success")
+    return redirect(url_for("admin.index"))
+
+
+@bp.route("/assignment/<int:id>/recheck-all")
+@login_required
+@admin_required
+def recheck_all(id):
+    assignment = Assignment.query.get_or_404(id)
+    if assignment.check_type != "auto" or not assignment.test_script_id:
+        flash("Для этого задания не настроен автотест", "warning")
+        return redirect(url_for("admin.index"))
+    script = TestScript.query.get(assignment.test_script_id)
+    if not script:
+        flash("Скрипт не найден", "danger")
+        return redirect(url_for("admin.index"))
+
+    submissions = Submission.query.filter_by(assignment_id=assignment.id).all()
+    if not submissions:
+        flash("Нет решений для перепроверки", "info")
+        return redirect(url_for("admin.index"))
+
+    count = 0
+    for sub in submissions:
+        # определяем что передать: текст или первый загруженный файл
+        if sub.answer_file:
+            # если есть файлы, берём первый
+            files = sub.answer_file.split(",")
+            input_path = os.path.join(current_app.config["UPLOAD_FOLDER"], files[0])
+            is_file = True
+        else:
+            input_path = sub.answer_text or ""
+            is_file = False
+
+        try:
+            result = run_check_docker(script.script_body, input_path, is_file)
+            sub.status = "passed" if result.get("passed") else "failed"
+            sub.score = result.get("score", 0)
+            sub.feedback = result.get("feedback", "")
+        except Exception as e:
+            sub.status = "failed"
+            sub.score = 0
+            sub.feedback = f"Ошибка перепроверки: {str(e)}"
+        count += 1
+
+    db.session.commit()
+    flash(f"Перепроверено решений: {count}", "success")
     return redirect(url_for("admin.index"))

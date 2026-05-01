@@ -46,11 +46,8 @@
               </button>
             </form>
             {% if a.check_type == 'auto' %}
-            <a
-              href="{{ url_for('admin.run_auto_check', id=a.id) }}"
-              class="btn btn-sm btn-info"
-              >Автопроверка</a
-            >
+              <a href="{{ url_for('admin.run_auto_check', id=a.id) }}" class="btn btn-sm btn-info">Автопроверка</a>
+              <a href="{{ url_for('admin.recheck_all', id=a.id) }}" class="btn btn-sm btn-warning">Перепроверить все</a>
             {% endif %}
           </td>
         </tr>
