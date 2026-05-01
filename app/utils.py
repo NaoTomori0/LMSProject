@@ -65,6 +65,10 @@ def send_verification_email(user):
 
 DOCKER_IMAGE = "lms-sandbox"
 
+import shutil
+
+docker_path = shutil.which("docker") or "/usr/bin/docker"
+
 
 def run_check_docker(script_body, answer_input, is_file_path=False, timeout=5):
     sandbox_dir = tempfile.mkdtemp(prefix="lms_sandbox_")
@@ -92,7 +96,7 @@ def run_check_docker(script_body, answer_input, is_file_path=False, timeout=5):
 
         # --- Строгая изоляция ---
         container_cmd = [
-            "docker",
+            docker_path,
             "run",
             "--rm",
             "--network",
