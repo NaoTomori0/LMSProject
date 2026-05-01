@@ -16,6 +16,9 @@
       <label for="language" class="form-label">Язык</label>
       <select class="form-select" id="language" name="language">
         <option value="python" {% if script and script.language == 'python' %}selected{% endif %}>Python</option>
+        <option value="cpp" {% if script and script.language == 'cpp' %}selected{% endif %}>C++</option>
+        <option value="javascript" {% if script and script.language == 'javascript' %}selected{% endif %}>JavaScript</option>
+        <option value="java" {% if script and script.language == 'java' %}selected{% endif %}>Java</option>
         <option value="bash" {% if script and script.language == 'bash' %}selected{% endif %}>Bash</option>
       </select>
     </div>
