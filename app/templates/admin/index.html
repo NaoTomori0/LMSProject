@@ -9,11 +9,13 @@
 
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h3>Задания</h3>
-    <a href="{{ url_for('admin.list_scripts') }}" class="btn btn-outline-info"
-      >Управление скриптами</a
-    >
-    <a href="{{ url_for('admin.list_groups') }}" class="btn btn-outline-info">Группы</a>
+
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('admin.list_scripts') }}" class="btn btn-outline-info">Управление скриптами</a>
+        <a href="{{ url_for('admin.list_groups') }}" class="btn btn-outline-info">Группы</a>
+    </div>
   </div>
+
   <div class="table-responsive mb-5">
     <table class="table table-striped">
       <thead>
