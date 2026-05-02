@@ -36,11 +36,11 @@
     </div>
     <h5>Ваше решение</h5>
     <div class="card">
-        <div class="card-body">
+        <div class="card-header">
             {% if submission.answer_text %}
-            <pre class="p-3 rounded">
-                <code>{{ submission.answer_text }}</code>
-            </pre>
+            <div class="card-body">
+                <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">{{ submission.answer_text }}</pre>
+            </div>
             {% else %}
             <p class="text-muted">Решение не содержит текста.</p>
             {% endif %}
