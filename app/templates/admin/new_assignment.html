@@ -42,31 +42,57 @@
                 </select>
             </div>
         </div>
-        <!-- Выбор группы -->
+        <!-- Видимость задания -->
         <div class="mb-3">
-            <label for="group_id" class="form-label">Группа (если задание только для группы)</label>
+            <label class="form-label">Видимость</label>
+            <div class="form-check">
+                <input
+                    class="form-check-input"
+                    type="radio"
+                    name="visibility"
+                    value="public"
+                    id="vis-public"
+                    checked
+                >
+                <label class="form-check-label" for="vis-public">Публичное (видят все, включая гостей)</label>
+            </div>
+            <div class="form-check">
+                <input
+                    class="form-check-input"
+                    type="radio"
+                    name="visibility"
+                    value="authenticated"
+                    id="vis-auth"
+                >
+                <label class="form-check-label" for="vis-auth">Только для авторизованных пользователей</label>
+            </div>
+            <div class="form-check">
+                <input
+                    class="form-check-input"
+                    type="radio"
+                    name="visibility"
+                    value="group"
+                    id="vis-group"
+                >
+                <label class="form-check-label" for="vis-group">Только для группы</label>
+            </div>
+        </div>
+        <!-- Выбор группы (показывается при выборе "Только для группы") -->
+        <div id="group-select" class="mb-3" style="display:none;">
+            <label for="group_id" class="form-label">Группа</label>
             <select class="form-select" id="group_id" name="group_id">
-                <option value="">-- Все (публичное) --</option>
+                <option value="">-- Выберите группу --</option>
                 {% for group in groups %}
                 <option value="{{ group.id }}">{{ group.name }}</option>
                 {% endfor %}
             </select>
-        </div>
-        <div class="form-check mb-3">
-            <input
-                class="form-check-input"
-                type="checkbox"
-                id="is_public"
-                name="is_public"
-                checked
-            >
-            <label class="form-check-label" for="is_public">Публичное (видят гости и все пользователи)</label>
         </div>
         <button type="submit" class="btn btn-primary">Создать</button>
         <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">Отмена</a>
     </form>
 </div>
 <script>
+  // Переключение блока скрипта
   const checkType = document.getElementById('check_type');
   const autoDiv = document.getElementById('auto-script');
   function toggleAuto() {
@@ -75,17 +101,17 @@
   checkType.addEventListener('change', toggleAuto);
   window.addEventListener('DOMContentLoaded', toggleAuto);
 
-  // При выборе группы автоматически снимаем чекбокс "Публичное"
-  const groupSelect = document.getElementById('group_id');
-  const publicCheck = document.getElementById('is_public');
-  groupSelect.addEventListener('change', function() {
-    if (this.value) {
-      publicCheck.checked = false;
-      publicCheck.disabled = true;
-    } else {
-      publicCheck.disabled = false;
-      publicCheck.checked = true;
-    }
-  });
+  // Переключение видимости: показываем выбор группы только при "group"
+  const radioPublic = document.getElementById('vis-public');
+  const radioAuth = document.getElementById('vis-auth');
+  const radioGroup = document.getElementById('vis-group');
+  const groupDiv = document.getElementById('group-select');
+  function toggleGroupSelect() {
+    groupDiv.style.display = radioGroup.checked ? 'block' : 'none';
+  }
+  radioPublic.addEventListener('change', toggleGroupSelect);
+  radioAuth.addEventListener('change', toggleGroupSelect);
+  radioGroup.addEventListener('change', toggleGroupSelect);
+  window.addEventListener('DOMContentLoaded', toggleGroupSelect);
 </script>
 {% endblock %}

@@ -134,14 +134,26 @@ def new_assignment():
         title = request.form.get("title")
         description = request.form.get("description")
         check_type = request.form.get("check_type", "manual")
-        # ВСЕГДА получаем group_id, независимо от чекбокса
-        group_id = request.form.get("group_id", type=int) or None
         script_id = (
             request.form.get("script_id", type=int) if check_type == "auto" else None
         )
 
-        # Если задание привязано к группе, оно НЕ должно быть публичным
-        is_public = False if group_id else request.form.get("is_public") == "on"
+        # --- новая логика видимости ---
+        visibility = request.form.get("visibility", "public")
+        group_id = None
+        is_public = False
+        if visibility == "public":
+            is_public = True
+        elif visibility == "authenticated":
+            is_public = False
+        elif visibility == "group":
+            is_public = False
+            group_id = request.form.get("group_id", type=int) or None
+            if not group_id:
+                flash("Выберите группу для группового задания", "danger")
+                return render_template(
+                    "admin/new_assignment.html", scripts=scripts, groups=groups
+                )
 
         assignment = Assignment(
             title=title,
@@ -180,21 +192,44 @@ def edit_assignment(id):
     scripts = TestScript.query.all()
     groups = Group.query.all()
 
+    # Определяем текущее значение visibility для формы
+    if assignment.is_public:
+        current_visibility = "public"
+    elif assignment.group_id:
+        current_visibility = "group"
+    else:
+        current_visibility = "authenticated"
+
     if request.method == "POST":
         assignment.title = request.form.get("title")
         assignment.description = request.form.get("description")
-        old_check_type = assignment.check_type
         assignment.check_type = request.form.get("check_type", "manual")
-        group_id = request.form.get("group_id", type=int) or None
+
+        visibility = request.form.get("visibility", "public")
+        group_id = None
+        is_public = False
+        if visibility == "public":
+            is_public = True
+        elif visibility == "authenticated":
+            is_public = False
+        elif visibility == "group":
+            is_public = False
+            group_id = request.form.get("group_id", type=int) or None
+            if not group_id:
+                flash("Выберите группу для группового задания", "danger")
+                return render_template(
+                    "admin/edit_assignment.html",
+                    assignment=assignment,
+                    scripts=scripts,
+                    groups=groups,
+                    current_visibility=current_visibility,
+                )
+        assignment.is_public = is_public
         assignment.group_id = group_id
-        assignment.is_public = (
-            False if group_id else request.form.get("is_public") == "on"
-        )
 
         # Удаляем старые привязки скриптов
         AssignmentScript.query.filter_by(assignment_id=assignment.id).delete()
 
-        # Если выбран автоматический тип и скрипт – создаём новые привязки
         if assignment.check_type == "auto":
             script_id = request.form.get("script_id", type=int)
             if script_id:
@@ -212,9 +247,7 @@ def edit_assignment(id):
         db.session.commit()
         cache.clear()
 
-        # --------------------------------------------------------------
-        # Проверяем доступ: если задание стало недоступно для кого-то
-        # --------------------------------------------------------------
+        # Проверка доступа (аннулирование решений тех, кто потерял доступ)
         if assignment.group_id:
             group = Group.query.get(assignment.group_id)
             subs = Submission.query.filter_by(assignment_id=assignment.id).all()
@@ -222,49 +255,34 @@ def edit_assignment(id):
                 has_access = False
                 if sub.user and sub.user in group.members:
                     has_access = True
-                # Гости и пользователи не из группы теряют доступ
                 if not has_access:
                     sub.status = "failed"
                     sub.score = 0
                     sub.feedback = "Задание теперь доступно только для участников группы. Ваше решение аннулировано."
             db.session.commit()
 
-        # --------------------------------------------------------------
-        # Запускаем перепроверку (авто) или сброс статуса (ручная)
-        # --------------------------------------------------------------
         if assignment.check_type == "auto":
             recheck_all_task.delay(assignment.id, current_app.config["UPLOAD_FOLDER"])
-            flash(
-                "Задание обновлено. Запущена полная перепроверка всех решений.",
-                "success",
-            )
+            flash("Задание обновлено. Запущена полная перепроверка.", "success")
         else:
-            # Для ручной проверки сбрасываем статус только тем, у кого есть доступ
+            # Сброс статуса только для тех, у кого остался доступ
             subs = Submission.query.filter_by(assignment_id=assignment.id).all()
             for sub in subs:
-                # Если решение ещё актуально (не аннулировано из-за потери доступа)
-                if (
-                    sub.status != "failed"
-                    or sub.feedback
-                    != "Задание теперь доступно только для участников группы. Ваше решение аннулировано."
-                ):
+                if sub.status != "failed" or "аннулировано" not in (sub.feedback or ""):
                     sub.status = "pending"
                     sub.score = None
                     sub.feedback = None
             db.session.commit()
-            flash(
-                "Задание обновлено. Статус всех актуальных решений сброшен на 'ожидает проверки'.",
-                "info",
-            )
+            flash("Задание обновлено. Статус актуальных решений сброшен.", "info")
 
         return redirect(url_for("admin.index"))
 
-    # GET – заполняем форму
     return render_template(
         "admin/edit_assignment.html",
         assignment=assignment,
         scripts=scripts,
         groups=groups,
+        current_visibility=current_visibility,
     )
 
 
