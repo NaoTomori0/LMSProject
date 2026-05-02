@@ -2,12 +2,12 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from functools import wraps
 from app import db
-from app.models import Assignment, Submission
+from app.models import Assignment, Submission, TestScript, AssignmentScript
 from flask import abort, send_from_directory, current_app, copy_current_request_context
 import os
 import threading
 from app import create_app
-from app.models import Assignment, Submission, TestScript
+
 from app.utils import run_check_docker
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
