@@ -129,20 +129,20 @@ def index():
 @admin_required
 def new_assignment():
     scripts = TestScript.query.all()
-    groups = Group.query.all()  # для выпадающего списка
+    groups = Group.query.all()
     if request.method == "POST":
         title = request.form.get("title")
         description = request.form.get("description")
         check_type = request.form.get("check_type", "manual")
-        is_public = request.form.get("is_public") == "on"
-        group_id = (
-            request.form.get("group_id", type=int)
-            if not request.form.get("is_public")
-            else None
-        )
+        # ВСЕГДА получаем group_id, независимо от чекбокса
+        group_id = request.form.get("group_id", type=int) or None
         script_id = (
             request.form.get("script_id", type=int) if check_type == "auto" else None
         )
+
+        # Если задание привязано к группе, оно НЕ должно быть публичным
+        is_public = False if group_id else request.form.get("is_public") == "on"
+
         assignment = Assignment(
             title=title,
             description=description,
@@ -165,9 +165,10 @@ def new_assignment():
                     )
                     db.session.add(link)
         db.session.commit()
-        cache.clear()  # очистка кеша
+        cache.clear()
         flash("Задание создано", "success")
         return redirect(url_for("admin.index"))
+
     return render_template("admin/new_assignment.html", scripts=scripts, groups=groups)
 
 

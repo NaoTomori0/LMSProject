@@ -30,26 +30,24 @@
             <option value="{{ s.id }}">{{ s.name }} ({{ s.language }})</option>
           {% endfor %}
         </select>
-        <div class="form-text">Будет использован для всех языков: Python, C++, JavaScript, Java.</div>
       </div>
+    </div>
+
+    <!-- Выбор группы -->
+    <div class="mb-3">
+      <label for="group_id" class="form-label">Группа (если задание только для группы)</label>
+      <select class="form-select" id="group_id" name="group_id">
+        <option value="">-- Все (публичное) --</option>
+        {% for group in groups %}
+          <option value="{{ group.id }}">{{ group.name }}</option>
+        {% endfor %}
+      </select>
     </div>
 
     <div class="form-check mb-3">
       <input class="form-check-input" type="checkbox" id="is_public" name="is_public" checked>
-      <label class="form-check-label" for="is_public">Публичное (видят гости)</label>
+      <label class="form-check-label" for="is_public">Публичное (видят гости и все пользователи)</label>
     </div>
-
-    <div class="mb-3">
-      <label for="group_id" class="form-label">Назначить группе</label>
-      <select class="form-select" id="group_id" name="group_id">
-        <option value="">-- Все (публичное) --</option>
-        {% for g in groups %}
-          <option value="{{ g.id }}">{{ g.name }}</option>
-        {% endfor %}
-      </select>
-      <div class="form-text">Если выбрана группа, задание будет видно только её членам.</div>
-    </div>
-
     <button type="submit" class="btn btn-primary">Создать</button>
     <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">Отмена</a>
   </form>
@@ -63,5 +61,18 @@
   }
   checkType.addEventListener('change', toggleAuto);
   window.addEventListener('DOMContentLoaded', toggleAuto);
+
+  // При выборе группы автоматически снимаем чекбокс "Публичное"
+  const groupSelect = document.getElementById('group_id');
+  const publicCheck = document.getElementById('is_public');
+  groupSelect.addEventListener('change', function() {
+    if (this.value) {
+      publicCheck.checked = false;
+      publicCheck.disabled = true;
+    } else {
+      publicCheck.disabled = false;
+      publicCheck.checked = true;
+    }
+  });
 </script>
 {% endblock %}
