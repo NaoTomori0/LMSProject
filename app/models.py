@@ -4,6 +4,15 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import secrets
 
+# ------------------------------------------------------------
+# Таблица связи пользователей и групп (многие-ко-многим)
+# ------------------------------------------------------------
+user_group = db.Table(
+    "user_group",
+    db.Column("user_id", db.Integer, db.ForeignKey("user.id"), primary_key=True),
+    db.Column("group_id", db.Integer, db.ForeignKey("group.id"), primary_key=True),
+)
+
 
 # ------------------------------------------------------------
 # TestScript
@@ -27,6 +36,10 @@ class Assignment(db.Model):
     check_type = db.Column(db.String(20), default="manual")
     is_public = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Привязка к группе (если задание не публичное, а только для конкретной группы)
+    group_id = db.Column(db.Integer, db.ForeignKey("group.id"), nullable=True)
+    group = db.relationship("Group", backref=db.backref("assignments", lazy="dynamic"))
 
     # Каскадное удаление Submission и AssignmentScript
     submissions = db.relationship(
@@ -86,6 +99,21 @@ class User(UserMixin, db.Model):
         user = User(email=email, username=username or email.split("@")[0], role="user")
         user.set_password(secrets.token_urlsafe(16))
         return user
+
+
+# ------------------------------------------------------------
+# Group
+# ------------------------------------------------------------
+class Group(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Участники группы (многие-ко-многим к User)
+    members = db.relationship(
+        "User", secondary=user_group, backref=db.backref("groups", lazy="dynamic")
+    )
 
 
 # ------------------------------------------------------------

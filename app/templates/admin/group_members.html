@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="container">
+  <h2>Участники группы «{{ group.name }}»</h2>
+
+  <div class="row mt-4">
+    <!-- Текущие участники -->
+    <div class="col-md-6">
+      <h4>В группе</h4>
+      {% if group.members %}
+        <ul class="list-group">
+          {% for user in group.members %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              {{ user.username }} ({{ user.email }})
+              <form method="POST" action="{{ url_for('admin.remove_member', id=group.id, user_id=user.id) }}" style="display:inline">
+                <button type="submit" class="btn btn-sm btn-danger">Удалить</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted">Нет участников</p>
+      {% endif %}
+    </div>
+
+    <!-- Добавление нового участника -->
+    <div class="col-md-6">
+      <h4>Добавить пользователя</h4>
+      <form method="POST" action="{{ url_for('admin.add_member', id=group.id) }}">
+        <div class="mb-3">
+          <select class="form-select" name="user_id" required>
+            <option value="">-- Выберите пользователя --</option>
+            {% for user in all_users %}
+              {% if user not in group.members %}
+                <option value="{{ user.id }}">{{ user.username }} ({{ user.email }})</option>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Добавить</button>
+      </form>
+    </div>
+  </div>
+
+  <a href="{{ url_for('admin.list_groups') }}" class="btn btn-secondary mt-3">← Назад к списку групп</a>
+</div>
+{% endblock %}

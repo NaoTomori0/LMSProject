@@ -12,7 +12,7 @@ from flask import (
 from flask_login import login_required, current_user
 from functools import wraps
 from app import db, create_app, cache  # <-- добавлен cache
-from app.models import Assignment, Submission, TestScript, AssignmentScript
+from app.models import Assignment, Submission, TestScript, AssignmentScript, Group, User
 import os
 from app.tasks import recheck_all_task
 from app.utils import run_check_docker
@@ -120,11 +120,17 @@ def index():
 @admin_required
 def new_assignment():
     scripts = TestScript.query.all()
+    groups = Group.query.all()  # для выпадающего списка
     if request.method == "POST":
         title = request.form.get("title")
         description = request.form.get("description")
         check_type = request.form.get("check_type", "manual")
         is_public = request.form.get("is_public") == "on"
+        group_id = (
+            request.form.get("group_id", type=int)
+            if not request.form.get("is_public")
+            else None
+        )
         script_id = (
             request.form.get("script_id", type=int) if check_type == "auto" else None
         )
@@ -133,6 +139,7 @@ def new_assignment():
             description=description,
             check_type=check_type,
             is_public=is_public,
+            group_id=group_id,
         )
         db.session.add(assignment)
         db.session.flush()
@@ -282,3 +289,120 @@ def recheck_all(id):
     cache.clear()  # очистка кеша
     flash("Перепроверка всех решений запущена в фоне через Celery.", "info")
     return redirect(url_for("admin.index"))
+
+
+# Новые маршруты для групп
+@bp.route("/groups")
+@login_required
+@admin_required
+def list_groups():
+    groups = Group.query.order_by(Group.created_at.desc()).all()
+    return render_template("admin/groups.html", groups=groups)
+
+
+@bp.route("/groups/new", methods=["GET", "POST"])
+@login_required
+@admin_required
+def new_group():
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        if not name:
+            flash("Введите название группы", "danger")
+            return render_template("admin/group_form.html", group=None)
+
+        # Проверяем уникальность
+        if Group.query.filter_by(name=name).first():
+            flash("Группа с таким названием уже существует", "danger")
+            return render_template("admin/group_form.html", group=None)
+
+        group = Group(name=name, created_by=current_user.id)
+        db.session.add(group)
+        db.session.commit()
+        cache.clear()
+        flash("Группа создана", "success")
+        return redirect(url_for("admin.list_groups"))
+
+    return render_template("admin/group_form.html", group=None)
+
+
+@bp.route("/groups/<int:id>/edit", methods=["GET", "POST"])
+@login_required
+@admin_required
+def edit_group(id):
+    group = Group.query.get_or_404(id)
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        if not name:
+            flash("Название не может быть пустым", "danger")
+            return render_template("admin/group_form.html", group=group)
+
+        # Проверка уникальности
+        existing = Group.query.filter(Group.name == name, Group.id != id).first()
+        if existing:
+            flash("Группа с таким названием уже есть", "danger")
+            return render_template("admin/group_form.html", group=group)
+
+        group.name = name
+        db.session.commit()
+        cache.clear()
+        flash("Группа обновлена", "success")
+        return redirect(url_for("admin.list_groups"))
+
+    return render_template("admin/group_form.html", group=group)
+
+
+@bp.route("/groups/<int:id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def delete_group(id):
+    group = Group.query.get_or_404(id)
+    db.session.delete(group)
+    db.session.commit()
+    cache.clear()
+    flash("Группа удалена", "info")
+    return redirect(url_for("admin.list_groups"))
+
+
+# Управление участниками
+@bp.route("/groups/<int:id>/members")
+@login_required
+@admin_required
+def manage_members(id):
+    group = Group.query.get_or_404(id)
+    all_users = User.query.filter(User.role != "admin").order_by(User.username).all()
+    return render_template("admin/group_members.html", group=group, all_users=all_users)
+
+
+@bp.route("/groups/<int:id>/members/add", methods=["POST"])
+@login_required
+@admin_required
+def add_member(id):
+    group = Group.query.get_or_404(id)
+    user_id = request.form.get("user_id", type=int)
+    if not user_id:
+        flash("Выберите пользователя", "danger")
+        return redirect(url_for("admin.manage_members", id=id))
+
+    user = User.query.get_or_404(user_id)
+    if user not in group.members:
+        group.members.append(user)
+        db.session.commit()
+        cache.clear()
+        flash(f"{user.username} добавлен в группу", "success")
+    else:
+        flash("Пользователь уже в группе", "info")
+    return redirect(url_for("admin.manage_members", id=id))
+
+
+@bp.route("/groups/<int:id>/members/remove/<int:user_id>", methods=["POST"])
+@login_required
+@admin_required
+def remove_member(id, user_id):
+    group = Group.query.get_or_404(id)
+    user = User.query.get_or_404(user_id)
+    if user in group.members:
+        group.members.remove(user)
+        db.session.commit()
+        cache.clear()
+        flash(f"{user.username} удалён из группы", "info")
+    return redirect(url_for("admin.manage_members", id=id))

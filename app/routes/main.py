@@ -6,27 +6,17 @@ from flask import (
     url_for,
     flash,
     current_app,
+    abort,
 )
 from datetime import datetime
-from app import db
+from app import db, cache
 from app.models import Assignment, Submission, TestScript, AssignmentScript
 from flask_login import current_user
 import os
 from werkzeug.utils import secure_filename
 import uuid
-from app import cache
 
 bp = Blueprint("main", __name__)
-
-
-@bp.route("/")
-@cache.cached(timeout=60)
-def index():
-    assignments = Assignment.query.order_by(Assignment.created_at.desc()).all()
-    return render_template(
-        "index.html", assignments=assignments, year=datetime.now().year
-    )
-
 
 ALLOWED_EXTENSIONS = {
     "py",
@@ -47,24 +37,64 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+# --------------------------------------------------------------
+# Главная страница со списком заданий (с учётом групп)
+# --------------------------------------------------------------
+@bp.route("/")
+@cache.cached(timeout=60, unless=lambda: current_user.is_authenticated)
+def index():
+    if current_user.is_authenticated:
+        # Публичные задания + задания из групп пользователя
+        user_group_ids = [g.id for g in current_user.groups]
+        assignments = (
+            Assignment.query.filter(
+                (Assignment.is_public == True)
+                | (Assignment.group_id.in_(user_group_ids))
+            )
+            .order_by(Assignment.created_at.desc())
+            .all()
+        )
+    else:
+        assignments = (
+            Assignment.query.filter_by(is_public=True)
+            .order_by(Assignment.created_at.desc())
+            .all()
+        )
+    return render_template(
+        "index.html", assignments=assignments, year=datetime.now().year
+    )
+
+
+# --------------------------------------------------------------
+# Отправка решения (с проверкой доступа и отложенной проверкой в Celery)
+# --------------------------------------------------------------
 @bp.route("/assignment/<int:assignment_id>/submit", methods=["GET", "POST"])
 def submit_assignment(assignment_id):
     assignment = Assignment.query.get_or_404(assignment_id)
+
+    # Проверка доступа к заданию
+    if not assignment.is_public:
+        if not current_user.is_authenticated:
+            abort(403)
+        if assignment.group_id is not None and assignment.group_id not in [
+            g.id for g in current_user.groups
+        ]:
+            abort(403)
+
     if request.method == "POST":
         answer_text = request.form.get("answer", "").strip()
         files = request.files.getlist("files")
-        language = request.form.get(
-            "language", "python"
-        )  # <-- язык выбранный студентом
+        language = request.form.get("language", "python")
 
         if not answer_text and (not files or all(f.filename == "" for f in files)):
             flash("Нужно ввести текст решения или загрузить файл(ы)", "danger")
             return render_template("submit.html", assignment=assignment)
 
+        # Создаём заявку
         submission = Submission(
             assignment_id=assignment.id,
             answer_text=answer_text,
-            language=language,  # <-- сохраняем язык
+            language=language,
         )
         if current_user.is_authenticated:
             submission.user_id = current_user.id
@@ -85,7 +115,6 @@ def submit_assignment(assignment_id):
             if not allowed_file(f.filename):
                 flash(f"Недопустимый тип файла: {f.filename}", "danger")
                 return render_template("submit.html", assignment=assignment)
-
             filename = secure_filename(f.filename)
             unique_name = f"{uuid.uuid4().hex}_{filename}"
             filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], unique_name)
@@ -99,7 +128,7 @@ def submit_assignment(assignment_id):
         db.session.commit()
         cache.clear()
 
-        # === Автоматическая проверка с учётом языка ===
+        # Автоматическая проверка через Celery (если задание с автотестом)
         if assignment.check_type == "auto":
             try:
                 from app.tasks import check_submission_task
@@ -108,12 +137,12 @@ def submit_assignment(assignment_id):
                     submission.id, current_app.config["UPLOAD_FOLDER"]
                 )
                 flash(
-                    "Ваше решение принято и поставлено в очередь на проверку. Результат появится в личном кабинете.",
+                    "Ваше решение принято и поставлено в очередь на проверку. "
+                    "Результат появится в личном кабинете.",
                     "info",
                 )
             except Exception as e:
-                flash(f"Ошибка при выполнении проверки: {e}", "danger")
-
+                flash(f"Ошибка при постановке в очередь проверки: {e}", "danger")
         else:
             flash("Решение успешно отправлено на проверку!", "success")
 
