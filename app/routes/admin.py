@@ -212,25 +212,48 @@ def edit_assignment(id):
         db.session.commit()
         cache.clear()
 
-        # Запускаем соответствующую перепроверку
+        # --------------------------------------------------------------
+        # Проверяем доступ: если задание стало недоступно для кого-то
+        # --------------------------------------------------------------
+        if assignment.group_id:
+            group = Group.query.get(assignment.group_id)
+            subs = Submission.query.filter_by(assignment_id=assignment.id).all()
+            for sub in subs:
+                has_access = False
+                if sub.user and sub.user in group.members:
+                    has_access = True
+                # Гости и пользователи не из группы теряют доступ
+                if not has_access:
+                    sub.status = "failed"
+                    sub.score = 0
+                    sub.feedback = "Задание теперь доступно только для участников группы. Ваше решение аннулировано."
+            db.session.commit()
+
+        # --------------------------------------------------------------
+        # Запускаем перепроверку (авто) или сброс статуса (ручная)
+        # --------------------------------------------------------------
         if assignment.check_type == "auto":
-            # Запускаем полную перепроверку всех решений
             recheck_all_task.delay(assignment.id, current_app.config["UPLOAD_FOLDER"])
             flash(
                 "Задание обновлено. Запущена полная перепроверка всех решений.",
                 "success",
             )
         else:
-            # Для ручной проверки сбрасываем статус у всех отправленных решений
+            # Для ручной проверки сбрасываем статус только тем, у кого есть доступ
             subs = Submission.query.filter_by(assignment_id=assignment.id).all()
             for sub in subs:
-                if sub.status != "pending":
+                # Если решение ещё актуально (не аннулировано из-за потери доступа)
+                if (
+                    sub.status != "failed"
+                    or sub.feedback
+                    != "Задание теперь доступно только для участников группы. Ваше решение аннулировано."
+                ):
                     sub.status = "pending"
                     sub.score = None
                     sub.feedback = None
             db.session.commit()
             flash(
-                "Задание обновлено. Статус всех решений сброшен на 'ожидает проверки'.",
+                "Задание обновлено. Статус всех актуальных решений сброшен на 'ожидает проверки'.",
                 "info",
             )
 
