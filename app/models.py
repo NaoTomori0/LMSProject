@@ -5,9 +5,9 @@ from datetime import datetime
 import secrets
 
 
-# -----------------------------------------------
-# Модели, которые НЕ ссылаются на User/Submission
-# -----------------------------------------------
+# ------------------------------------------------------------
+# TestScript
+# ------------------------------------------------------------
 class TestScript(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -17,6 +17,9 @@ class TestScript(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+# ------------------------------------------------------------
+# Assignment
+# ------------------------------------------------------------
 class Assignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
@@ -25,16 +28,21 @@ class Assignment(db.Model):
     is_public = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Связь с языковыми скриптами
+    # Каскадное удаление Submission и AssignmentScript
+    submissions = db.relationship(
+        "Submission", backref="assignment", lazy="dynamic", cascade="all, delete-orphan"
+    )
     language_scripts = db.relationship(
         "AssignmentScript",
-        backref=db.backref("assignment", lazy="dynamic", cascade="all, delete-orphan"),
+        backref="assignment",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
     )
 
 
-# -----------------------------------------------
-# AssignmentScript – связка задания, языка и скрипта
-# -----------------------------------------------
+# ------------------------------------------------------------
+# AssignmentScript
+# ------------------------------------------------------------
 class AssignmentScript(db.Model):
     __tablename__ = "assignment_script"
     id = db.Column(db.Integer, primary_key=True)
@@ -44,14 +52,14 @@ class AssignmentScript(db.Model):
     test_script_id = db.Column(
         db.Integer, db.ForeignKey("test_script.id"), nullable=False
     )
-    language = db.Column(db.String(20), nullable=False)  # python, cpp, etc.
+    language = db.Column(db.String(20), nullable=False)
 
     test_script = db.relationship("TestScript")
 
 
-# -----------------------------------------------
-# User (до Submission, иначе ForeignKey не найдёт)
-# -----------------------------------------------
+# ------------------------------------------------------------
+# User
+# ------------------------------------------------------------
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
@@ -80,9 +88,9 @@ class User(UserMixin, db.Model):
         return user
 
 
-# -----------------------------------------------
-# Submission (зависит от User и Assignment)
-# -----------------------------------------------
+# ------------------------------------------------------------
+# Submission
+# ------------------------------------------------------------
 class Submission(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
@@ -98,11 +106,6 @@ class Submission(db.Model):
     score = db.Column(db.Float, nullable=True)
     feedback = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    assignment = db.relationship(
-        "Assignment",
-        backref=db.backref("submissions", lazy="dynamic", cascade="all, delete-orphan"),
-    )
 
 
 @login.user_loader
