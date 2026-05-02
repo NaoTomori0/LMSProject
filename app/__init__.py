@@ -134,14 +134,14 @@ def create_app(config_class=Config):
         offset = request.cookies.get("timezone_offset", "0")
         return {"utc_offset": offset}
 
-    from sqlalchemy import event
+    # from sqlalchemy import event
 
-    with app.app_context():
+    # with app.app_context():
 
-        @event.listens_for(db.engine, "connect")
-        def _set_wal(dbapi_connection, connection_record):
-            cursor = dbapi_connection.cursor()
-            cursor.execute("PRAGMA journal_mode=WAL;")
-            cursor.close()
+    #     @event.listens_for(db.engine, "connect")
+    #     def _set_wal(dbapi_connection, connection_record):
+    #         cursor = dbapi_connection.cursor()
+    #         cursor.execute("PRAGMA journal_mode=WAL;")
+    #         cursor.close()
 
     return app
