@@ -5,8 +5,6 @@ from .utils import run_check_docker
 
 @celery.task(bind=True, max_retries=3, default_retry_delay=60)
 def check_submission_task(self, submission_id, upload_folder):
-    """Проверка одного решения (вызывается при отправке студентом)."""
-    # Создаём приложение внутри задачи, чтобы был контекст
     from . import create_app
 
     app = create_app()
@@ -55,7 +53,6 @@ def check_submission_task(self, submission_id, upload_folder):
 
 @celery.task
 def recheck_all_task(assignment_id, upload_folder):
-    """Полная перепроверка всех решений задания (вызывается из админки)."""
     from . import create_app
 
     app = create_app()
