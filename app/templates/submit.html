@@ -2,7 +2,13 @@
 {% block body %}
 <div class="container" style="max-width: 800px;">
   <h1 class="mb-4">Сдать решение: {{ assignment.title }}</h1>
-  <p class="text-muted">{{ assignment.description }}</p>
+
+  <div class="card mb-3">
+    <div class="card-header">Текст задания</div>
+    <div class="card-body">
+      <p class="card-text">{{ assignment.description or 'Без описания' }}</p>
+    </div>
+  </div>
 
   <form method="POST" enctype="multipart/form-data" id="submit-form">
     <!-- Выбор языка подсветки и компиляции -->
