@@ -26,3 +26,7 @@ class Config:
     MAIL_USE_TLS = True
     MAIL_USERNAME = os.environ.get("MAIL_USERNAME")
     MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
+
+    # Celery
+    CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+    CELERY_RESULT_BACKEND = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
