@@ -4,6 +4,7 @@
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Группы</h1>
     <a href="{{ url_for('admin.new_group') }}" class="btn btn-success">+ Новая группа</a>
+    <a href="{{ url_for('admin.list_invites', id=g.id) }}" class="btn btn-sm btn-outline-primary">Приглашения</a>
   </div>
 
   {% if groups %}

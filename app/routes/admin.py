@@ -12,7 +12,16 @@ from flask import (
 from flask_login import login_required, current_user
 from functools import wraps
 from app import db, create_app, cache  # <-- добавлен cache
-from app.models import Assignment, Submission, TestScript, AssignmentScript, Group, User
+from app.models import (
+    Assignment,
+    Submission,
+    TestScript,
+    AssignmentScript,
+    Group,
+    User,
+    GroupInvite,
+)
+from datetime import datetime, timedelta
 import os
 from app.tasks import recheck_all_task
 from app.utils import run_check_docker
@@ -406,3 +415,51 @@ def remove_member(id, user_id):
         cache.clear()
         flash(f"{user.username} удалён из группы", "info")
     return redirect(url_for("admin.manage_members", id=id))
+
+
+@bp.route("/groups/<int:id>/invites")
+@login_required
+@admin_required
+def list_invites(id):
+    group = Group.query.get_or_404(id)
+    invites = (
+        GroupInvite.query.filter_by(group_id=id)
+        .order_by(GroupInvite.created_at.desc())
+        .all()
+    )
+    return render_template("admin/group_invites.html", group=group, invites=invites)
+
+
+@bp.route("/groups/<int:id>/invites/create", methods=["POST"])
+@login_required
+@admin_required
+def create_invite(id):
+    group = Group.query.get_or_404(id)
+    max_uses = request.form.get("max_uses", 0, type=int)
+    expires_days = request.form.get("expires_days", 0, type=int)
+    invite = GroupInvite(
+        group_id=group.id,
+        created_by=current_user.id,
+        max_uses=max_uses,
+        expires_at=(
+            datetime.utcnow() + timedelta(days=expires_days)
+            if expires_days > 0
+            else None
+        ),
+    )
+    db.session.add(invite)
+    db.session.commit()
+    cache.clear()
+    return redirect(url_for("admin.list_invites", id=id))
+
+
+@bp.route("/groups/<int:id>/invites/<int:invite_id>/deactivate", methods=["POST"])
+@login_required
+@admin_required
+def deactivate_invite(id, invite_id):
+    invite = GroupInvite.query.get_or_404(invite_id)
+    invite.is_active = False
+    db.session.commit()
+    cache.clear()
+    flash("Ссылка деактивирована", "info")
+    return redirect(url_for("admin.list_invites", id=id))

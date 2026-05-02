@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, current_user, login_required
 from app import db, oauth, cache  # добавлен cache
-from app.models import User
+from app.models import User, GroupInvite
 from datetime import datetime
 from app.utils import (
     generate_verification_code,
@@ -209,3 +209,28 @@ def resend_code():
     send_verification_email(user)
     flash("Новый код отправлен.", "info")
     return redirect(url_for("auth.verify_email"))
+
+
+@bp.route("/invite/<token>")
+@login_required
+def accept_invite(token):
+    invite = GroupInvite.query.filter_by(token=token, is_active=True).first_or_404()
+    if invite.expires_at and invite.expires_at < datetime.utcnow():
+        flash("Срок действия ссылки истёк.", "danger")
+        return redirect(url_for("main.index"))
+    if invite.max_uses > 0 and invite.uses >= invite.max_uses:
+        flash(
+            "Ссылка больше не действительна (достигнут лимит использований).", "danger"
+        )
+        return redirect(url_for("main.index"))
+
+    group = invite.group
+    if current_user not in group.members:
+        group.members.append(current_user)
+        invite.uses += 1
+        db.session.commit()
+        cache.clear()
+        flash(f"Вы успешно вступили в группу «{group.name}».", "success")
+    else:
+        flash("Вы уже состоите в этой группе.", "info")
+    return redirect(url_for("cabinet.index"))

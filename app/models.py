@@ -139,3 +139,24 @@ class Submission(db.Model):
 @login.user_loader
 def load_user(id):
     return User.query.get(int(id))
+
+
+class GroupInvite(db.Model):
+    __tablename__ = "group_invite"
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey("group.id"), nullable=False)
+    token = db.Column(
+        db.String(64),
+        unique=True,
+        nullable=False,
+        default=lambda: secrets.token_urlsafe(32),
+    )
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    uses = db.Column(db.Integer, default=0)  # сколько раз использована
+    max_uses = db.Column(db.Integer, default=0)  # 0 – без ограничений
+    expires_at = db.Column(db.DateTime, nullable=True)  # срок действия
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    group = db.relationship("Group", backref=db.backref("invites", lazy="dynamic"))
+    creator = db.relationship("User")
