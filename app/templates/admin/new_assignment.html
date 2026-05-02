@@ -20,27 +20,18 @@
       </select>
     </div>
 
-    <!-- Блок скриптов для разных языков (показывается, когда выбран auto) -->
-    <div id="auto-scripts" style="display:none;">
-      <h5 class="mt-4">Скрипты проверки по языкам</h5>
-      {% set languages = [
-        {'code': 'python', 'name': 'Python'},
-        {'code': 'cpp', 'name': 'C++'},
-        {'code': 'javascript', 'name': 'JavaScript'},
-        {'code': 'java', 'name': 'Java'}
-      ] %}
-      {% for lang in languages %}
-        <div class="mb-3">
-          <label class="form-label">{{ lang.name }}</label>
-          <select class="form-select" name="script_{{ lang.code }}">
-            <option value="">-- Не выбран --</option>
-            {% for s in scripts %}
-              <option value="{{ s.id }}">{{ s.name }} ({{ s.language }})</option>
-            {% endfor %}
-          </select>
-        </div>
-      {% endfor %}
-      <div class="form-text">Если скрипты не выбраны, задание для этого языка будет недоступно для авто-проверки.</div>
+    <!-- Блок выбора скрипта (только для auto) -->
+    <div id="auto-script" style="display:none;">
+      <div class="mb-3">
+        <label for="script_id" class="form-label">Скрипт проверки (универсальный)</label>
+        <select class="form-select" id="script_id" name="script_id">
+          <option value="">-- Не выбран --</option>
+          {% for s in scripts %}
+            <option value="{{ s.id }}">{{ s.name }} ({{ s.language }})</option>
+          {% endfor %}
+        </select>
+        <div class="form-text">Будет использован для всех языков: Python, C++, JavaScript, Java.</div>
+      </div>
     </div>
 
     <div class="form-check mb-3">
@@ -54,7 +45,7 @@
 
 <script>
   const checkType = document.getElementById('check_type');
-  const autoDiv = document.getElementById('auto-scripts');
+  const autoDiv = document.getElementById('auto-script');
   function toggleAuto() {
     autoDiv.style.display = checkType.value === 'auto' ? 'block' : 'none';
   }

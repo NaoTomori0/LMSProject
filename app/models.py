@@ -27,7 +27,8 @@ class Assignment(db.Model):
 
     # Связь с языковыми скриптами
     language_scripts = db.relationship(
-        "AssignmentScript", backref="assignment", lazy="dynamic"
+        "AssignmentScript",
+        backref=db.backref("assignment", lazy="dynamic", cascade="all, delete-orphan"),
     )
 
 
@@ -99,7 +100,8 @@ class Submission(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     assignment = db.relationship(
-        "Assignment", backref=db.backref("submissions", lazy="dynamic")
+        "Assignment",
+        backref=db.backref("submissions", lazy="dynamic", cascade="all, delete-orphan"),
     )
 
 

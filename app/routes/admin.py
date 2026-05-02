@@ -122,6 +122,9 @@ def new_assignment():
         description = request.form.get("description")
         check_type = request.form.get("check_type", "manual")
         is_public = request.form.get("is_public") == "on"
+        script_id = (
+            request.form.get("script_id", type=int) if check_type == "auto" else None
+        )
 
         assignment = Assignment(
             title=title,
@@ -130,14 +133,14 @@ def new_assignment():
             is_public=is_public,
         )
         db.session.add(assignment)
-        db.session.flush()  # получаем assignment.id
+        db.session.flush()
 
-        languages = ["python", "cpp", "javascript", "java"]
-        for lang in languages:
-            script_id = request.form.get(f"script_{lang}")
-            if script_id:
-                script = TestScript.query.get(int(script_id))
-                if script:
+        # Если выбрана автоматическая проверка и указан скрипт – привязываем его ко всем языкам
+        if check_type == "auto" and script_id:
+            script = TestScript.query.get(script_id)
+            if script:
+                languages = ["python", "cpp", "javascript", "java"]
+                for lang in languages:
                     link = AssignmentScript(
                         assignment_id=assignment.id,
                         test_script_id=script.id,
