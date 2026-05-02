@@ -10,8 +10,8 @@ from flask import (
 )
 from datetime import datetime
 from app import db, cache
-from app.models import Assignment, Submission, TestScript, AssignmentScript
-from flask_login import current_user
+from app.models import Assignment, Submission, TestScript, AssignmentScript, GroupInvite
+from flask_login import current_user, login_required
 import os
 from werkzeug.utils import secure_filename
 import uuid
@@ -149,3 +149,35 @@ def submit_assignment(assignment_id):
         return redirect(url_for("main.index"))
 
     return render_template("submit.html", assignment=assignment)
+
+
+@bp.route("/join/<token>")
+@login_required
+def join_group(token):
+    invite = GroupInvite.query.filter_by(token=token, is_active=True).first()
+    if not invite:
+        flash("Приглашение недействительно или просрочено.", "danger")
+        return redirect(url_for("main.index"))
+
+    if invite.expires_at and invite.expires_at < datetime.utcnow():
+        invite.is_active = False
+        db.session.commit()
+        flash("Срок действия приглашения истёк.", "danger")
+        return redirect(url_for("main.index"))
+
+    if invite.max_uses > 0 and invite.uses >= invite.max_uses:
+        invite.is_active = False
+        db.session.commit()
+        flash("Лимит использований приглашения исчерпан.", "danger")
+        return redirect(url_for("main.index"))
+
+    group = invite.group
+    if current_user in group.members:
+        flash("Вы уже состоите в этой группе.", "info")
+    else:
+        group.members.append(current_user)
+        invite.uses += 1
+        db.session.commit()
+        cache.clear()
+        flash(f"Вы вступили в группу «{group.name}».", "success")
+    return redirect(url_for("main.index"))
