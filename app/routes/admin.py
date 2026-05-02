@@ -326,6 +326,8 @@ def new_group():
             return render_template("admin/group_form.html", group=None)
 
         group = Group(name=name, created_by=current_user.id)
+        # Добавляем создателя (админа) в группу автоматически
+        group.members.append(current_user)
         db.session.add(group)
         db.session.commit()
         cache.clear()
@@ -410,6 +412,10 @@ def add_member(id):
 def remove_member(id, user_id):
     group = Group.query.get_or_404(id)
     user = User.query.get_or_404(user_id)
+    # Запрет удаления администраторов
+    if user.is_admin():
+        flash("Нельзя удалить администратора из группы", "danger")
+        return redirect(url_for("admin.manage_members", id=id))
     if user in group.members:
         group.members.remove(user)
         db.session.commit()
