@@ -1,13 +1,20 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import (
+    Blueprint,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    flash,
+    abort,
+    send_from_directory,
+    current_app,
+)
 from flask_login import login_required, current_user
 from functools import wraps
-from app import db
+from app import db, create_app
 from app.models import Assignment, Submission, TestScript, AssignmentScript
-from flask import abort, send_from_directory, current_app, copy_current_request_context
 import os
 import threading
-from app import create_app
-
 from app.utils import run_check_docker
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -23,6 +30,9 @@ def admin_required(f):
     return decorated_function
 
 
+# -------------------------------------------------------------
+# Управление скриптами
+# -------------------------------------------------------------
 @bp.route("/scripts")
 @login_required
 @admin_required
@@ -40,11 +50,9 @@ def new_script():
         description = request.form.get("description", "").strip()
         language = request.form.get("language", "python")
         script_body = request.form.get("script_body", "").strip()
-
         if not name or not script_body:
             flash("Название и код скрипта обязательны", "danger")
             return render_template("admin/script_form.html", script=None)
-
         script = TestScript(
             name=name,
             description=description,
@@ -55,7 +63,6 @@ def new_script():
         db.session.commit()
         flash("Скрипт создан", "success")
         return redirect(url_for("admin.list_scripts"))
-
     return render_template("admin/script_form.html", script=None)
 
 
@@ -86,6 +93,9 @@ def delete_script(id):
     return redirect(url_for("admin.list_scripts"))
 
 
+# -------------------------------------------------------------
+# Главная страница админки
+# -------------------------------------------------------------
 @bp.route("/")
 @login_required
 @admin_required
@@ -99,6 +109,9 @@ def index():
     )
 
 
+# -------------------------------------------------------------
+# Создание / удаление задания
+# -------------------------------------------------------------
 @bp.route("/assignment/new", methods=["GET", "POST"])
 @login_required
 @admin_required
@@ -117,9 +130,8 @@ def new_assignment():
             is_public=is_public,
         )
         db.session.add(assignment)
-        db.session.flush()  # чтобы получить assignment.id
+        db.session.flush()  # получаем assignment.id
 
-        # Обрабатываем выбранные скрипты для каждого языка
         languages = ["python", "cpp", "javascript", "java"]
         for lang in languages:
             script_id = request.form.get(f"script_{lang}")
@@ -150,6 +162,9 @@ def delete_assignment(id):
     return redirect(url_for("admin.index"))
 
 
+# -------------------------------------------------------------
+# Ручная проверка решения
+# -------------------------------------------------------------
 @bp.route("/submission/<int:id>", methods=["GET", "POST"])
 @login_required
 @admin_required
@@ -173,14 +188,13 @@ def view_submission(id):
     return render_template("admin/submission_detail.html", submission=submission)
 
 
-from flask import send_from_directory, current_app
-
-
+# -------------------------------------------------------------
+# Скачивание прикреплённого файла
+# -------------------------------------------------------------
 @bp.route("/submission/<int:submission_id>/uploads/<path:filename>")
 @login_required
 @admin_required
 def download_file(submission_id, filename):
-    # Можно добавить проверку, что submission существует
     submission = Submission.query.get_or_404(submission_id)
     if filename not in (submission.answer_file or "").split(","):
         abort(404)
@@ -189,67 +203,99 @@ def download_file(submission_id, filename):
     )
 
 
+# -------------------------------------------------------------
+# Автоматическая проверка (один раз, только непроверенные)
+# -------------------------------------------------------------
 @bp.route("/assignment/<int:id>/run-auto-check")
 @login_required
 @admin_required
 def run_auto_check(id):
     assignment = Assignment.query.get_or_404(id)
-    if assignment.check_type != "auto" or not assignment.test_script_id:
+    if assignment.check_type != "auto":
         flash("Для этого задания не настроен автотест", "warning")
         return redirect(url_for("admin.index"))
 
-    script = TestScript.query.get(assignment.test_script_id)
-    if not script:
-        flash("Скрипт не найден", "danger")
-        return redirect(url_for("admin.index"))
-
-    # Получаем все непроверенные решения этого задания
-    submissions = Submission.query.filter_by(
+    pending_subs = Submission.query.filter_by(
         assignment_id=assignment.id, status="pending"
     ).all()
-    if not submissions:
+    if not pending_subs:
         flash("Нет решений для проверки", "info")
         return redirect(url_for("admin.index"))
 
-    from app.utils import run_check
-
     count = 0
-    for sub in submissions:
-        result = run_check(script.script_body, sub.answer_text or "")
-        sub.status = "passed" if result.get("passed") else "failed"
-        sub.score = result.get("score", 0)
-        sub.feedback = result.get("feedback", "")
-        count += 1
+    for sub in pending_subs:
+        if not sub.language:
+            continue  # нет языка – пропускаем
+        assigned_script = AssignmentScript.query.filter_by(
+            assignment_id=assignment.id, language=sub.language
+        ).first()
+        if not assigned_script:
+            continue
+        script = assigned_script.test_script
+        if not script:
+            continue
+
+        if sub.answer_file:
+            files = sub.answer_file.split(",")
+            input_path = os.path.join(current_app.config["UPLOAD_FOLDER"], files[0])
+            is_file = True
+        else:
+            input_path = sub.answer_text or ""
+            is_file = False
+
+        try:
+            result = run_check_docker(
+                script.script_body, input_path, is_file, language=sub.language
+            )
+            sub.status = "passed" if result.get("passed") else "failed"
+            sub.score = result.get("score", 0)
+            sub.feedback = result.get("feedback", "")
+            count += 1
+        except Exception as e:
+            sub.status = "failed"
+            sub.score = 0
+            sub.feedback = f"Ошибка: {str(e)}"
 
     db.session.commit()
     flash(f"Проверено {count} решений", "success")
     return redirect(url_for("admin.index"))
 
 
-def recheck_all_background(assignment_id, script_id, folder):
-    """Фоновая задача для перепроверки всех решений задания."""
-    app = create_app()  # создаём новое приложение для изоляции контекста
+# -------------------------------------------------------------
+# Фоновая перепроверка всех решений (с учётом языка)
+# -------------------------------------------------------------
+def recheck_all_background(assignment_id, upload_folder):
+    app = create_app()
     with app.app_context():
-        from app.models import Assignment, TestScript, Submission
-        from app.utils import run_check_docker
-
         assignment = Assignment.query.get(assignment_id)
-        if not assignment:
+        if not assignment or assignment.check_type != "auto":
             return
-        script = TestScript.query.get(script_id)
-        if not script:
-            return
+
         submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
         for sub in submissions:
+            if not sub.language:
+                continue
+            assigned_script = AssignmentScript.query.filter_by(
+                assignment_id=assignment_id, language=sub.language
+            ).first()
+            if not assigned_script:
+                continue
+            script = assigned_script.test_script
+            if not script:
+                continue
+
             if sub.answer_file:
                 files = sub.answer_file.split(",")
-                input_path = os.path.join(folder, files[0])
+                input_path = os.path.join(upload_folder, files[0])
                 is_file = True
             else:
                 input_path = sub.answer_text or ""
                 is_file = False
+
             try:
-                result = run_check_docker(script.script_body, input_path, is_file)
+                result = run_check_docker(
+                    script.script_body, input_path, is_file, language=sub.language
+                )
                 sub.status = "passed" if result.get("passed") else "failed"
                 sub.score = result.get("score", 0)
                 sub.feedback = result.get("feedback", "")
@@ -265,21 +311,15 @@ def recheck_all_background(assignment_id, script_id, folder):
 @admin_required
 def recheck_all(id):
     assignment = Assignment.query.get_or_404(id)
-    if assignment.check_type != "auto" or not assignment.test_script_id:
+    if assignment.check_type != "auto":
         flash("Для этого задания не настроен автотест", "warning")
         return redirect(url_for("admin.index"))
 
-    # Запускаем фоновый поток
     thread = threading.Thread(
         target=recheck_all_background,
-        args=(
-            assignment.id,
-            assignment.test_script_id,
-            current_app.config["UPLOAD_FOLDER"],
-        ),
+        args=(assignment.id, current_app.config["UPLOAD_FOLDER"]),
     )
     thread.start()
-
     flash(
         "Перепроверка всех решений запущена в фоне. Обновите страницу через некоторое время.",
         "info",

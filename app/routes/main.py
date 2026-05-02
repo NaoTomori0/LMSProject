@@ -117,7 +117,12 @@ def submit_assignment(assignment_id):
                     is_file = False
 
                 try:
-                    result = run_check_docker(script.script_body, input_path, is_file)
+                    result = run_check_docker(
+                        script.script_body,
+                        input_path,
+                        is_file,
+                        language=submission.language,
+                    )
                     submission.status = "passed" if result.get("passed") else "failed"
                     submission.score = result.get("score", 0)
                     submission.feedback = result.get("feedback", "")

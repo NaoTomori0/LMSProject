@@ -70,7 +70,9 @@ import shutil
 docker_path = shutil.which("docker") or "/usr/bin/docker"
 
 
-def run_check_docker(script_body, answer_input, is_file_path=False, timeout=5):
+def run_check_docker(
+    script_body, answer_input, is_file_path=False, timeout=5, language=None
+):
     sandbox_dir = tempfile.mkdtemp(prefix="lms_sandbox_")
     try:
         # Сохраняем скрипт проверки
@@ -119,6 +121,9 @@ def run_check_docker(script_body, answer_input, is_file_path=False, timeout=5):
             "/sandbox/checker.py",
             answer_arg,
         ]
+
+        if language:
+            container_cmd.append(language)
 
         proc = subprocess.run(
             container_cmd, capture_output=True, text=True, timeout=timeout + 3
