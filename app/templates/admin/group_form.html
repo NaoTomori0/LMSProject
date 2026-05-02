@@ -1,16 +1,21 @@
 {% extends "base.html" %}
 {% block body %}
 <div class="container" style="max-width: 500px;">
-  <h1>{% if group %}Редактирование группы{% else %}Новая группа{% endif %}</h1>
-
-  <form method="POST">
-    <div class="mb-3">
-      <label for="name" class="form-label">Название группы</label>
-      <input type="text" class="form-control" id="name" name="name"
-             value="{{ group.name if group else '' }}" required>
-    </div>
-    <button type="submit" class="btn btn-primary">{% if group %}Сохранить{% else %}Создать{% endif %}</button>
-    <a href="{{ url_for('admin.list_groups') }}" class="btn btn-secondary">Отмена</a>
-  </form>
+    <h1>{% if group %}Редактирование группы{% else %}Новая группа{% endif %}</h1>
+    <form method="POST">
+        <div class="mb-3">
+            <label for="name" class="form-label">Название группы</label>
+            <input
+                type="text"
+                class="form-control"
+                id="name"
+                name="name"
+                value="{{ group.name if group else '' }}"
+                required
+            >
+        </div>
+        <button type="submit" class="btn btn-primary">{% if group %}Сохранить{% else %}Создать{% endif %}</button>
+        <a href="{{ url_for('admin.list_groups') }}" class="btn btn-secondary">Отмена</a>
+    </form>
 </div>
 {% endblock %}

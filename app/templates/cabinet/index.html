@@ -1,45 +1,44 @@
 {% extends "base.html" %} {% block body %}
 <div class="container">
-  <h1>Личный кабинет</h1>
-  <h4 class="mb-4">Ваши отправленные решения</h4>
-
-  {% if submissions %}
-  <div class="table-responsive">
-    <table class="table table-striped">
-      <thead>
-        <tr>
-          <th>Задание</th>
-          <th>Статус</th>
-          <th>Баллы</th>
-          <th>Комментарий</th>
-          <th>Дата</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for sub in submissions %}
-        <tr>
-          <td>{{ sub.assignment.title }}</td>
-          <td>
-            {% if sub.status == 'pending' %}
-            <span class="badge bg-warning text-dark">Ожидает</span>
-            {% elif sub.status == 'passed' %}
-            <span class="badge bg-success">Пройдено</span>
-            {% elif sub.status == 'failed' %}
-            <span class="badge bg-danger">Не пройдено</span>
-            {% else %}
-            <span class="badge bg-secondary">{{ sub.status }}</span>
-            {% endif %}
-          </td>
-          <td>{{ sub.score if sub.score is not none else '-' }}</td>
-          <td>{{ sub.feedback or '' }}</td>
-          <td>{{ sub.created_at | localtime(utc_offset) }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <p>Вы ещё не отправляли решения.</p>
-  {% endif %}
+    <h1>Личный кабинет</h1>
+    <h4 class="mb-4">Ваши отправленные решения</h4>
+    {% if submissions %}
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Задание</th>
+                    <th>Статус</th>
+                    <th>Баллы</th>
+                    <th>Комментарий</th>
+                    <th>Дата</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sub in submissions %}
+                <tr>
+                    <td>{{ sub.assignment.title }}</td>
+                    <td>
+                        {% if sub.status == 'pending' %}
+                        <span class="badge bg-warning text-dark">Ожидает</span>
+                        {% elif sub.status == 'passed' %}
+                        <span class="badge bg-success">Пройдено</span>
+                        {% elif sub.status == 'failed' %}
+                        <span class="badge bg-danger">Не пройдено</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ sub.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ sub.score if sub.score is not none else '-' }}</td>
+                    <td>{{ sub.feedback or '' }}</td>
+                    <td>{{ sub.created_at | localtime(utc_offset) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>Вы ещё не отправляли решения.</p>
+    {% endif %}
 </div>
 {% endblock %}

@@ -1,100 +1,86 @@
 {% extends "base.html" %} {% block body %}
 <div class="container">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Панель администратора</h1>
-    <a href="{{ url_for('admin.new_assignment') }}" class="btn btn-success"
-      >+ Новое задание</a
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Панель администратора</h1>
+        <a href="{{ url_for('admin.new_assignment') }}" class="btn btn-success">+ Новое задание
+        </a
     >
-  </div>
-
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3>Задания</h3>
-
-    <div class="d-flex gap-2">
-        <a href="{{ url_for('admin.list_scripts') }}" class="btn btn-outline-info">Управление скриптами</a>
-        <a href="{{ url_for('admin.list_groups') }}" class="btn btn-outline-info">Группы</a>
     </div>
-  </div>
-
-  <div class="table-responsive mb-5">
-    <table class="table table-striped">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Название</th>
-          <th>Тип</th>
-          <th>Публичное</th>
-          <th>Действия</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for a in assignments %}
-        <tr>
-          <td>{{ a.id }}</td>
-          <td>{{ a.title }}</td>
-          <td>{{ a.check_type }}</td>
-          <td>{{ 'Да' if a.is_public else 'Нет' }}</td>
-          <td>
-            <form
-              method="POST"
-              action="{{ url_for('admin.delete_assignment', id=a.id) }}"
-              style="display: inline"
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>Задания</h3>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin.list_scripts') }}" class="btn btn-outline-info">Управление скриптами</a>
+            <a href="{{ url_for('admin.list_groups') }}" class="btn btn-outline-info">Группы</a>
+        </div>
+    </div>
+    <div class="table-responsive mb-5">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Название</th>
+                    <th>Тип</th>
+                    <th>Публичное</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in assignments %}
+                <tr>
+                    <td>{{ a.id }}</td>
+                    <td>{{ a.title }}</td>
+                    <td>{{ a.check_type }}</td>
+                    <td>{{ 'Да' if a.is_public else 'Нет' }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('admin.delete_assignment', id=a.id) }}" style="display: inline">
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Удалить задание?');">
+                                Удалить
+                            </button>
+                        </form>
+                        {% if a.check_type == 'auto' %}
+                        <a href="{{ url_for('admin.run_auto_check', id=a.id) }}" class="btn btn-sm btn-info">Автопроверка</a>
+                        <a href="{{ url_for('admin.recheck_all', id=a.id) }}" class="btn btn-sm btn-warning">Перепроверить все</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <h3>Последние решения</h3>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Задание</th>
+                    <th>Пользователь</th>
+                    <th>Статус</th>
+                    <th>Баллы</th>
+                    <th>Дата</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in submissions %}
+                <tr>
+                    <td>{{ s.id }}</td>
+                    <td>{{ s.assignment.title }}</td>
+                    <td>
+                        {{ s.user.username if s.user else (s.guest_name or 'Гость') }}
+                    </td>
+                    <td>{{ s.status }}</td>
+                    <td>{{ s.score if s.score is not none else '-' }}</td>
+                    <td>{{ s.created_at | localtime(utc_offset) }}</td>
+                    <td>
+                        <a href="{{ url_for('admin.view_submission', id=s.id) }}" class="btn btn-sm btn-outline-primary">Проверить
+                        </a
             >
-              <button
-                type="submit"
-                class="btn btn-sm btn-danger"
-                onclick="return confirm('Удалить задание?');"
-              >
-                Удалить
-              </button>
-            </form>
-            {% if a.check_type == 'auto' %}
-              <a href="{{ url_for('admin.run_auto_check', id=a.id) }}" class="btn btn-sm btn-info">Автопроверка</a>
-              <a href="{{ url_for('admin.recheck_all', id=a.id) }}" class="btn btn-sm btn-warning">Перепроверить все</a>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <h3>Последние решения</h3>
-  <div class="table-responsive">
-    <table class="table table-striped">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Задание</th>
-          <th>Пользователь</th>
-          <th>Статус</th>
-          <th>Баллы</th>
-          <th>Дата</th>
-          <th>Действия</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for s in submissions %}
-        <tr>
-          <td>{{ s.id }}</td>
-          <td>{{ s.assignment.title }}</td>
-          <td>
-            {{ s.user.username if s.user else (s.guest_name or 'Гость') }}
-          </td>
-          <td>{{ s.status }}</td>
-          <td>{{ s.score if s.score is not none else '-' }}</td>
-          <td>{{ s.created_at | localtime(utc_offset) }}</td>
-          <td>
-            <a
-              href="{{ url_for('admin.view_submission', id=s.id) }}"
-              class="btn btn-sm btn-outline-primary"
-              >Проверить</a
-            >
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}

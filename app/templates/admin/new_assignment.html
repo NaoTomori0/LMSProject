@@ -1,58 +1,71 @@
 {% extends "base.html" %}
 {% block body %}
 <div class="container" style="max-width: 600px;">
-  <h1>Новое задание</h1>
-  <form method="POST">
-    <div class="mb-3">
-      <label for="title" class="form-label">Название</label>
-      <input type="text" class="form-control" id="title" name="title" required>
-    </div>
-    <div class="mb-3">
-      <label for="description" class="form-label">Описание</label>
-      <textarea class="form-control" id="description" name="description" rows="4"></textarea>
-    </div>
-    <div class="mb-3">
-      <label for="check_type" class="form-label">Тип проверки</label>
-      <select class="form-select" id="check_type" name="check_type">
-        <option value="manual">Ручная</option>
-        <option value="auto">Автоматическая (скрипт)</option>
-        <option value="quiz">Тест</option>
-      </select>
-    </div>
-
-    <!-- Блок выбора скрипта (только для auto) -->
-    <div id="auto-script" style="display:none;">
-      <div class="mb-3">
-        <label for="script_id" class="form-label">Скрипт проверки (универсальный)</label>
-        <select class="form-select" id="script_id" name="script_id">
-          <option value="">-- Не выбран --</option>
-          {% for s in scripts %}
-            <option value="{{ s.id }}">{{ s.name }} ({{ s.language }})</option>
-          {% endfor %}
-        </select>
-      </div>
-    </div>
-
-    <!-- Выбор группы -->
-    <div class="mb-3">
-      <label for="group_id" class="form-label">Группа (если задание только для группы)</label>
-      <select class="form-select" id="group_id" name="group_id">
-        <option value="">-- Все (публичное) --</option>
-        {% for group in groups %}
-          <option value="{{ group.id }}">{{ group.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div class="form-check mb-3">
-      <input class="form-check-input" type="checkbox" id="is_public" name="is_public" checked>
-      <label class="form-check-label" for="is_public">Публичное (видят гости и все пользователи)</label>
-    </div>
-    <button type="submit" class="btn btn-primary">Создать</button>
-    <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">Отмена</a>
-  </form>
+    <h1>Новое задание</h1>
+    <form method="POST">
+        <div class="mb-3">
+            <label for="title" class="form-label">Название</label>
+            <input
+                type="text"
+                class="form-control"
+                id="title"
+                name="title"
+                required
+            >
+        </div>
+        <div class="mb-3">
+            <label for="description" class="form-label">Описание</label>
+            <textarea
+                class="form-control"
+                id="description"
+                name="description"
+                rows="4"
+            ></textarea>
+        </div>
+        <div class="mb-3">
+            <label for="check_type" class="form-label">Тип проверки</label>
+            <select class="form-select" id="check_type" name="check_type">
+                <option value="manual">Ручная</option>
+                <option value="auto">Автоматическая (скрипт)</option>
+                <option value="quiz">Тест</option>
+            </select>
+        </div>
+        <!-- Блок выбора скрипта (только для auto) -->
+        <div id="auto-script" style="display:none;">
+            <div class="mb-3">
+                <label for="script_id" class="form-label">Скрипт проверки (универсальный)</label>
+                <select class="form-select" id="script_id" name="script_id">
+                    <option value="">-- Не выбран --</option>
+                    {% for s in scripts %}
+                    <option value="{{ s.id }}">{{ s.name }} ({{ s.language }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <!-- Выбор группы -->
+        <div class="mb-3">
+            <label for="group_id" class="form-label">Группа (если задание только для группы)</label>
+            <select class="form-select" id="group_id" name="group_id">
+                <option value="">-- Все (публичное) --</option>
+                {% for group in groups %}
+                <option value="{{ group.id }}">{{ group.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-check mb-3">
+            <input
+                class="form-check-input"
+                type="checkbox"
+                id="is_public"
+                name="is_public"
+                checked
+            >
+            <label class="form-check-label" for="is_public">Публичное (видят гости и все пользователи)</label>
+        </div>
+        <button type="submit" class="btn btn-primary">Создать</button>
+        <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">Отмена</a>
+    </form>
 </div>
-
 <script>
   const checkType = document.getElementById('check_type');
   const autoDiv = document.getElementById('auto-script');

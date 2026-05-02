@@ -1,60 +1,76 @@
 {% extends "base.html" %}
 {% block body %}
 <div class="container" style="max-width: 800px;">
-  <h1 class="mb-4">Сдать решение: {{ assignment.title }}</h1>
-
-  <div class="card mb-3">
-    <div class="card-header">Текст задания</div>
-    <div class="card-body">
-      <pre class="card-text">{{ assignment.description or 'Без описания' }}</pre>
+    <h1 class="mb-4">Сдать решение: {{ assignment.title }}</h1>
+    <div class="card mb-3">
+        <div class="card-header">Текст задания</div>
+        <div class="card-body">
+            <pre class="card-text">{{ assignment.description or 'Без описания' }}</pre>
+        </div>
     </div>
-  </div>
-
-  <form method="POST" enctype="multipart/form-data" id="submit-form">
-    <!-- Выбор языка подсветки и компиляции -->
-    <div class="row mb-3">
-      <div class="col-md-4">
-        <label for="language-select" class="form-label">Язык программирования</label>
-        <select class="form-select" id="language-select">
-          <option value="python" selected>Python</option>
-          <option value="cpp">C++</option>
-          <option value="javascript">JavaScript</option>
-          <option value="java">Java</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Редактор кода -->
-    <div class="mb-3">
-      <label for="editor" class="form-label">Ваше решение</label>
-      <textarea id="editor" name="answer" style="height: 400px;"></textarea>
-    </div>
-
-    <!-- Скрытое поле для передачи выбранного языка -->
-    <input type="hidden" id="selected-language" name="language" value="python">
-
-    <!-- Загрузка файлов -->
-    <div class="mb-3">
-      <label for="files" class="form-label">Прикрепить файлы (если нужно)</label>
-      <input class="form-control" type="file" id="files" name="files" multiple>
-      <div class="form-text">Допустимые типы: .py, .js, .cpp, .c, .java, .txt, .zip</div>
-    </div>
-
-    {% if not current_user.is_authenticated %}
-      <h5 class="mb-3">Ваши данные</h5>
-      <div class="mb-3">
-        <label for="guest_name" class="form-label">Имя</label>
-        <input type="text" class="form-control" id="guest_name" name="guest_name" required>
-      </div>
-      <div class="mb-3">
-        <label for="guest_email" class="form-label">Email</label>
-        <input type="email" class="form-control" id="guest_email" name="guest_email" required>
-      </div>
-    {% endif %}
-
-    <button type="submit" class="btn btn-success">Отправить</button>
-    <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Назад</a>
-  </form>
+    <form method="POST" enctype="multipart/form-data" id="submit-form">
+        <!-- Выбор языка подсветки и компиляции -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label for="language-select" class="form-label">Язык программирования</label>
+                <select class="form-select" id="language-select">
+                    <option value="python" selected>Python</option>
+                    <option value="cpp">C++</option>
+                    <option value="javascript">JavaScript</option>
+                    <option value="java">Java</option>
+                </select>
+            </div>
+        </div>
+        <!-- Редактор кода -->
+        <div class="mb-3">
+            <label for="editor" class="form-label">Ваше решение</label>
+            <textarea id="editor" name="answer" style="height: 400px;"></textarea>
+        </div>
+        <!-- Скрытое поле для передачи выбранного языка -->
+        <input
+            type="hidden"
+            id="selected-language"
+            name="language"
+            value="python"
+        >
+        <!-- Загрузка файлов -->
+        <div class="mb-3">
+            <label for="files" class="form-label">Прикрепить файлы (если нужно)</label>
+            <input
+                class="form-control"
+                type="file"
+                id="files"
+                name="files"
+                multiple
+            >
+            <div class="form-text">Допустимые типы: .py, .js, .cpp, .c, .java, .txt, .zip</div>
+        </div>
+        {% if not current_user.is_authenticated %}
+        <h5 class="mb-3">Ваши данные</h5>
+        <div class="mb-3">
+            <label for="guest_name" class="form-label">Имя</label>
+            <input
+                type="text"
+                class="form-control"
+                id="guest_name"
+                name="guest_name"
+                required
+            >
+        </div>
+        <div class="mb-3">
+            <label for="guest_email" class="form-label">Email</label>
+            <input
+                type="email"
+                class="form-control"
+                id="guest_email"
+                name="guest_email"
+                required
+            >
+        </div>
+        {% endif %}
+        <button type="submit" class="btn btn-success">Отправить</button>
+        <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Назад</a>
+    </form>
 </div>
 {% endblock %}
 
