@@ -110,10 +110,7 @@ class Group(db.Model):
     name = db.Column(db.String(100), unique=True, nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    invites = db.relationship(
-        "GroupInvite", backref="group", lazy="dynamic", cascade="all, delete-orphan"
-    )
-    # Участники группы (многие-ко-многим к User)
+
     members = db.relationship(
         "User", secondary=user_group, backref=db.backref("groups", lazy="dynamic")
     )
@@ -150,10 +147,14 @@ class GroupInvite(db.Model):
     group_id = db.Column(db.Integer, db.ForeignKey("group.id"), nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     token = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
-    max_uses = db.Column(db.Integer, default=0)  # 0 — без ограничений
+    max_uses = db.Column(db.Integer, default=0)
     uses = db.Column(db.Integer, default=0)
     is_active = db.Column(db.Boolean, default=True)
     expires_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    group = db.relationship("Group", backref=db.backref("invites", lazy="dynamic"))
+    # Эта строка заменяет всё: и прямую связь, и обратную ссылку 'invites' для Group
+    group = db.relationship(
+        "Group",
+        backref=db.backref("invites", lazy="dynamic", cascade="all, delete-orphan"),
+    )
