@@ -110,7 +110,9 @@ class Group(db.Model):
     name = db.Column(db.String(100), unique=True, nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    invites = db.relationship(
+        "GroupInvite", backref="group", lazy="dynamic", cascade="all, delete-orphan"
+    )
     # Участники группы (многие-ко-многим к User)
     members = db.relationship(
         "User", secondary=user_group, backref=db.backref("groups", lazy="dynamic")
