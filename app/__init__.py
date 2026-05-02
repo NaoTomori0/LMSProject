@@ -9,6 +9,9 @@ from datetime import datetime
 from flask_mail import Mail
 from datetime import timedelta
 from dotenv import load_dotenv
+from flask_caching import Cache
+
+cache = Cache()
 
 load_dotenv()
 
@@ -143,5 +146,14 @@ def create_app(config_class=Config):
     #         cursor = dbapi_connection.cursor()
     #         cursor.execute("PRAGMA journal_mode=WAL;")
     #         cursor.close()
+
+    cache.init_app(
+        app,
+        config={
+            "CACHE_TYPE": "redis",
+            "CACHE_REDIS_URL": app.config.get("REDIS_URL", "redis://localhost:6379/0"),
+            "CACHE_DEFAULT_TIMEOUT": 60,
+        },
+    )
 
     return app
