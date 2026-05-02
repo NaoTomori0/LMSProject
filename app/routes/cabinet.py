@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, abort
 from flask_login import login_required, current_user
 from app.models import Submission
 from app import cache
@@ -16,3 +16,13 @@ def index():
         .all()
     )
     return render_template("cabinet/index.html", submissions=submissions)
+
+
+@bp.route("/submission/<int:id>")
+@login_required
+def view_submission(id):
+    submission = Submission.query.get_or_404(id)
+    # Показываем только свои решения
+    if submission.user_id != current_user.id:
+        abort(403)
+    return render_template("cabinet/submission_detail.html", submission=submission)
