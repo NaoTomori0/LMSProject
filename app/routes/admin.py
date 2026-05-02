@@ -103,26 +103,35 @@ def index():
 @login_required
 @admin_required
 def new_assignment():
-    scripts = TestScript.query.all()  # для выпадающего списка
+    scripts = TestScript.query.all()
     if request.method == "POST":
         title = request.form.get("title")
         description = request.form.get("description")
         check_type = request.form.get("check_type", "manual")
         is_public = request.form.get("is_public") == "on"
-        test_script_id = (
-            request.form.get("test_script_id", type=int)
-            if check_type == "auto"
-            else None
-        )
 
-        a = Assignment(
+        assignment = Assignment(
             title=title,
             description=description,
             check_type=check_type,
             is_public=is_public,
-            test_script_id=test_script_id,
         )
-        db.session.add(a)
+        db.session.add(assignment)
+        db.session.flush()  # чтобы получить assignment.id
+
+        # Обрабатываем выбранные скрипты для каждого языка
+        languages = ["python", "cpp", "javascript", "java"]
+        for lang in languages:
+            script_id = request.form.get(f"script_{lang}")
+            if script_id:
+                script = TestScript.query.get(int(script_id))
+                if script:
+                    link = AssignmentScript(
+                        assignment_id=assignment.id,
+                        test_script_id=script.id,
+                        language=lang,
+                    )
+                    db.session.add(link)
         db.session.commit()
         flash("Задание создано", "success")
         return redirect(url_for("admin.index"))

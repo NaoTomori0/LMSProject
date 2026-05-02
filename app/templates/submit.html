@@ -5,25 +5,29 @@
   <p class="text-muted">{{ assignment.description }}</p>
 
   <form method="POST" enctype="multipart/form-data" id="submit-form">
-    <!-- Выбор языка подсветки -->
+    <!-- Выбор языка подсветки и компиляции -->
     <div class="row mb-3">
       <div class="col-md-4">
         <label for="language-select" class="form-label">Язык программирования</label>
-        <select class="form-select" id="language-select" name="language">
+        <select class="form-select" id="language-select">
           <option value="python" selected>Python</option>
-          <option value="javascript">JavaScript</option>
           <option value="cpp">C++</option>
+          <option value="javascript">JavaScript</option>
+          <option value="java">Java</option>
         </select>
       </div>
     </div>
 
-    <!-- Редактор кода (CodeMirror привяжется к этой textarea) -->
+    <!-- Редактор кода -->
     <div class="mb-3">
       <label for="editor" class="form-label">Ваше решение</label>
       <textarea id="editor" name="answer" style="height: 400px;"></textarea>
     </div>
 
-    <!-- Загрузка файлов (опционально) -->
+    <!-- Скрытое поле для передачи выбранного языка -->
+    <input type="hidden" id="selected-language" name="language" value="python">
+
+    <!-- Загрузка файлов -->
     <div class="mb-3">
       <label for="files" class="form-label">Прикрепить файлы (если нужно)</label>
       <input class="form-control" type="file" id="files" name="files" multiple>
@@ -50,27 +54,37 @@
 
 {% block scripts %}
 <script>
-  document.addEventListener("DOMContentLoaded", function() {
-    // Инициализация CodeMirror на textarea #editor
-    var editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
+  document.addEventListener('DOMContentLoaded', function() {
+    // CodeMirror инициализация
+    var editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
       lineNumbers: true,
-      mode: "python",
-      theme: "dracula",
+      mode: 'python',
+      theme: 'dracula',
       indentUnit: 4,
       matchBrackets: true,
       autoCloseBrackets: true,
       styleActiveLine: true
     });
 
-    // Переключение языка подсветки
-    var select = document.getElementById("language-select");
-    select.addEventListener("change", function() {
-      var val = select.value;
-      var mode = "python";
-      if (val === "javascript") mode = "javascript";
-      else if (val === "cpp") mode = "text/x-c++src";
-      editor.setOption("mode", mode);
+    // Элементы управления языком
+    var langSelect = document.getElementById('language-select');
+    var hiddenLang = document.getElementById('selected-language');
+
+    // Смена языка редактора и скрытого поля
+    langSelect.addEventListener('change', function() {
+      var val = this.value;
+      hiddenLang.value = val;
+
+      // Установка режима CodeMirror
+      var mode = 'python';
+      if (val === 'javascript') mode = 'javascript';
+      else if (val === 'cpp') mode = 'text/x-c++src';
+      else if (val === 'java') mode = 'text/x-java';
+      editor.setOption('mode', mode);
     });
+
+    // При загрузке страницы синхронизируем скрытое поле
+    hiddenLang.value = langSelect.value;
   });
 </script>
 {% endblock %}

@@ -9,7 +9,7 @@ from flask import (
 )
 from datetime import datetime
 from app import db
-from app.models import Assignment, Submission, TestScript
+from app.models import Assignment, Submission, TestScript, AssignmentScript
 from flask_login import current_user
 import os
 from werkzeug.utils import secure_filename
@@ -51,14 +51,19 @@ def submit_assignment(assignment_id):
     if request.method == "POST":
         answer_text = request.form.get("answer", "").strip()
         files = request.files.getlist("files")
+        language = request.form.get(
+            "language", "python"
+        )  # <-- язык выбранный студентом
 
-        # Проверка, что хоть что-то есть
         if not answer_text and (not files or all(f.filename == "" for f in files)):
             flash("Нужно ввести текст решения или загрузить файл(ы)", "danger")
             return render_template("submit.html", assignment=assignment)
 
-        # Создаём заявку
-        submission = Submission(assignment_id=assignment.id, answer_text=answer_text)
+        submission = Submission(
+            assignment_id=assignment.id,
+            answer_text=answer_text,
+            language=language,  # <-- сохраняем язык
+        )
         if current_user.is_authenticated:
             submission.user_id = current_user.id
         else:
@@ -91,15 +96,18 @@ def submit_assignment(assignment_id):
         db.session.add(submission)
         db.session.commit()
 
-        # === Автоматическая проверка (если задание с автотестом) ===
-        if assignment.check_type == "auto" and assignment.test_script_id:
-            script = TestScript.query.get(assignment.test_script_id)
+        # === Автоматическая проверка с учётом языка ===
+        if assignment.check_type == "auto":
+            # Ищем подходящий скрипт для задания и выбранного языка
+            assignment_script = AssignmentScript.query.filter_by(
+                assignment_id=assignment.id, language=language
+            ).first()
+            script = assignment_script.test_script if assignment_script else None
+
             if script:
                 from app.utils import run_check_docker
 
-                # Определяем входные данные для скрипта
                 if uploaded_filenames:
-                    # Берём первый загруженный файл как ответ
                     input_path = os.path.join(
                         current_app.config["UPLOAD_FOLDER"], uploaded_filenames[0]
                     )
@@ -123,7 +131,8 @@ def submit_assignment(assignment_id):
                     flash(f"Ошибка при выполнении проверки: {e}", "danger")
             else:
                 flash(
-                    "Скрипт автотеста не найден. Решение сохранено, ожидает проверки.",
+                    f"Для языка {language} авто-проверка не настроена. "
+                    "Решение сохранено, ожидает ручной проверки.",
                     "warning",
                 )
         else:

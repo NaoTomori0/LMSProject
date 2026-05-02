@@ -7,20 +7,24 @@ import secrets
 # Порядок важен: сначала модели, на которые нет ссылок, потом зависимые
 
 
-class Assignment(db.Model):
+# Добавить после класса Submission
+class AssignmentScript(db.Model):
+    __tablename__ = "assignment_script"
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    check_type = db.Column(db.String(20), default="manual")  # manual, auto, quiz
+    assignment_id = db.Column(
+        db.Integer, db.ForeignKey("assignment.id"), nullable=False
+    )
     test_script_id = db.Column(
-        db.Integer, db.ForeignKey("test_script.id"), nullable=True
+        db.Integer, db.ForeignKey("test_script.id"), nullable=False
     )
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    is_public = db.Column(db.Boolean, default=True)
+    language = db.Column(
+        db.String(20), nullable=False
+    )  # 'python', 'cpp', 'javascript', 'java'
 
-    submissions = db.relationship(
-        "Submission", backref="assignment", lazy="dynamic", cascade="all, delete-orphan"
+    assignment = db.relationship(
+        "Assignment", backref=db.backref("language_scripts", lazy="dynamic")
     )
+    test_script = db.relationship("TestScript")
 
 
 class TestScript(db.Model):
@@ -48,7 +52,7 @@ class Submission(db.Model):
     score = db.Column(db.Float, nullable=True)
     feedback = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    langusage = db.Column(db.String(20), nullable=True)
     # Связь с пользователем (обратная ссылка 'submissions' создается через backref)
     user = db.relationship("User", backref=db.backref("submissions", lazy="dynamic"))
 

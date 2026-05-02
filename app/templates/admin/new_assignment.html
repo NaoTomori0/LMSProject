@@ -1,63 +1,51 @@
-{% extends "base.html" %} {% block body %}
-<div class="container" style="max-width: 600px">
+{% extends "base.html" %}
+{% block body %}
+<div class="container" style="max-width: 600px;">
   <h1>Новое задание</h1>
   <form method="POST">
     <div class="mb-3">
       <label for="title" class="form-label">Название</label>
-      <input
-        type="text"
-        class="form-control"
-        id="title"
-        name="title"
-        required
-      />
+      <input type="text" class="form-control" id="title" name="title" required>
     </div>
     <div class="mb-3">
       <label for="description" class="form-label">Описание</label>
-      <textarea
-        class="form-control"
-        id="description"
-        name="description"
-        rows="4"
-      ></textarea>
+      <textarea class="form-control" id="description" name="description" rows="4"></textarea>
     </div>
     <div class="mb-3">
       <label for="check_type" class="form-label">Тип проверки</label>
-      <select
-        class="form-select"
-        id="check_type"
-        name="check_type"
-        onchange="toggleScriptSelect()"
-      >
+      <select class="form-select" id="check_type" name="check_type">
         <option value="manual">Ручная</option>
         <option value="auto">Автоматическая (скрипт)</option>
         <option value="quiz">Тест</option>
       </select>
     </div>
-    <div class="mb-3" id="script_select_group" style="display: none">
-      <label for="test_script_id" class="form-label">Скрипт проверки</label>
-      <select class="form-select" id="test_script_id" name="test_script_id">
-        <option value="">-- Выберите скрипт --</option>
-        {% for s in scripts %}
-        <option value="{{ s.id }}">{{ s.name }} ({{ s.language }})</option>
-        {% endfor %}
-      </select>
-      <div class="form-text">
-        Если нужный скрипт отсутствует,
-        <a href="{{ url_for('admin.new_script') }}">создайте его</a>.
-      </div>
+
+    <!-- Блок скриптов для разных языков (показывается, когда выбран auto) -->
+    <div id="auto-scripts" style="display:none;">
+      <h5 class="mt-4">Скрипты проверки по языкам</h5>
+      {% set languages = [
+        {'code': 'python', 'name': 'Python'},
+        {'code': 'cpp', 'name': 'C++'},
+        {'code': 'javascript', 'name': 'JavaScript'},
+        {'code': 'java', 'name': 'Java'}
+      ] %}
+      {% for lang in languages %}
+        <div class="mb-3">
+          <label class="form-label">{{ lang.name }}</label>
+          <select class="form-select" name="script_{{ lang.code }}">
+            <option value="">-- Не выбран --</option>
+            {% for s in scripts %}
+              <option value="{{ s.id }}">{{ s.name }} ({{ s.language }})</option>
+            {% endfor %}
+          </select>
+        </div>
+      {% endfor %}
+      <div class="form-text">Если скрипты не выбраны, задание для этого языка будет недоступно для авто-проверки.</div>
     </div>
+
     <div class="form-check mb-3">
-      <input
-        class="form-check-input"
-        type="checkbox"
-        id="is_public"
-        name="is_public"
-        checked
-      />
-      <label class="form-check-label" for="is_public"
-        >Публичное (видят гости)</label
-      >
+      <input class="form-check-input" type="checkbox" id="is_public" name="is_public" checked>
+      <label class="form-check-label" for="is_public">Публичное (видят гости)</label>
     </div>
     <button type="submit" class="btn btn-primary">Создать</button>
     <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">Отмена</a>
@@ -65,12 +53,12 @@
 </div>
 
 <script>
-  function toggleScriptSelect() {
-    const type = document.getElementById("check_type").value;
-    const group = document.getElementById("script_select_group");
-    group.style.display = type === "auto" ? "block" : "none";
+  const checkType = document.getElementById('check_type');
+  const autoDiv = document.getElementById('auto-scripts');
+  function toggleAuto() {
+    autoDiv.style.display = checkType.value === 'auto' ? 'block' : 'none';
   }
-  // Вызов при загрузке на случай, если значение сохранено (например, при ошибке валидации)
-  window.addEventListener("DOMContentLoaded", toggleScriptSelect);
+  checkType.addEventListener('change', toggleAuto);
+  window.addEventListener('DOMContentLoaded', toggleAuto);
 </script>
 {% endblock %}
