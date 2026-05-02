@@ -11,11 +11,9 @@ from flask import (
 )
 from flask_login import login_required, current_user
 from functools import wraps
-from app import db, create_app
+from app import db, create_app, cache  # <-- добавлен cache
 from app.models import Assignment, Submission, TestScript, AssignmentScript
 import os
-
-# import threading
 from app.tasks import recheck_all_task
 from app.utils import run_check_docker
 
@@ -63,6 +61,7 @@ def new_script():
         )
         db.session.add(script)
         db.session.commit()
+        cache.clear()  # очистка кеша
         flash("Скрипт создан", "success")
         return redirect(url_for("admin.list_scripts"))
     return render_template("admin/script_form.html", script=None)
@@ -79,6 +78,7 @@ def edit_script(id):
         script.language = request.form.get("language", "python")
         script.script_body = request.form.get("script_body", "").strip()
         db.session.commit()
+        cache.clear()  # очистка кеша
         flash("Скрипт обновлён", "success")
         return redirect(url_for("admin.list_scripts"))
     return render_template("admin/script_form.html", script=script)
@@ -91,6 +91,7 @@ def delete_script(id):
     script = TestScript.query.get_or_404(id)
     db.session.delete(script)
     db.session.commit()
+    cache.clear()  # очистка кеша
     flash("Скрипт удалён", "info")
     return redirect(url_for("admin.list_scripts"))
 
@@ -127,7 +128,6 @@ def new_assignment():
         script_id = (
             request.form.get("script_id", type=int) if check_type == "auto" else None
         )
-
         assignment = Assignment(
             title=title,
             description=description,
@@ -137,7 +137,6 @@ def new_assignment():
         db.session.add(assignment)
         db.session.flush()
 
-        # Если выбрана автоматическая проверка и указан скрипт – привязываем его ко всем языкам
         if check_type == "auto" and script_id:
             script = TestScript.query.get(script_id)
             if script:
@@ -150,9 +149,9 @@ def new_assignment():
                     )
                     db.session.add(link)
         db.session.commit()
+        cache.clear()  # очистка кеша
         flash("Задание создано", "success")
         return redirect(url_for("admin.index"))
-
     return render_template("admin/new_assignment.html", scripts=scripts)
 
 
@@ -163,6 +162,7 @@ def delete_assignment(id):
     a = Assignment.query.get_or_404(id)
     db.session.delete(a)
     db.session.commit()
+    cache.clear()  # очистка кеша
     flash("Задание удалено", "info")
     return redirect(url_for("admin.index"))
 
@@ -179,7 +179,6 @@ def view_submission(id):
         status = request.form.get("status")
         score = request.form.get("score", type=float)
         feedback = request.form.get("feedback", "").strip()
-
         if status not in ("pending", "passed", "failed", "checked"):
             flash("Неверный статус", "danger")
             return redirect(url_for("admin.view_submission", id=id))
@@ -188,8 +187,8 @@ def view_submission(id):
         submission.score = score
         submission.feedback = feedback
         db.session.commit()
+        cache.clear()  # очистка кеша
         return redirect(url_for("admin.index"))
-
     return render_template("admin/submission_detail.html", submission=submission)
 
 
@@ -230,7 +229,7 @@ def run_auto_check(id):
     count = 0
     for sub in pending_subs:
         if not sub.language:
-            continue  # нет языка – пропускаем
+            continue
         assigned_script = AssignmentScript.query.filter_by(
             assignment_id=assignment.id, language=sub.language
         ).first()
@@ -262,55 +261,14 @@ def run_auto_check(id):
             sub.feedback = f"Ошибка: {str(e)}"
 
     db.session.commit()
+    cache.clear()  # очистка кеша
     flash(f"Проверено {count} решений", "success")
     return redirect(url_for("admin.index"))
 
 
 # -------------------------------------------------------------
-# Фоновая перепроверка всех решений (с учётом языка)
+# Фоновая перепроверка всех решений (через Celery)
 # -------------------------------------------------------------
-def recheck_all_background(assignment_id, upload_folder):
-    app = create_app()
-    with app.app_context():
-        assignment = Assignment.query.get(assignment_id)
-        if not assignment or assignment.check_type != "auto":
-            return
-
-        submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
-        for sub in submissions:
-            if not sub.language:
-                continue
-            assigned_script = AssignmentScript.query.filter_by(
-                assignment_id=assignment_id, language=sub.language
-            ).first()
-            if not assigned_script:
-                continue
-            script = assigned_script.test_script
-            if not script:
-                continue
-
-            if sub.answer_file:
-                files = sub.answer_file.split(",")
-                input_path = os.path.join(upload_folder, files[0])
-                is_file = True
-            else:
-                input_path = sub.answer_text or ""
-                is_file = False
-
-            try:
-                result = run_check_docker(
-                    script.script_body, input_path, is_file, language=sub.language
-                )
-                sub.status = "passed" if result.get("passed") else "failed"
-                sub.score = result.get("score", 0)
-                sub.feedback = result.get("feedback", "")
-            except Exception as e:
-                sub.status = "failed"
-                sub.score = 0
-                sub.feedback = f"Ошибка: {str(e)}"
-        db.session.commit()
-
-
 @bp.route("/assignment/<int:id>/recheck-all")
 @login_required
 @admin_required
@@ -321,5 +279,6 @@ def recheck_all(id):
         return redirect(url_for("admin.index"))
 
     recheck_all_task.delay(assignment.id, current_app.config["UPLOAD_FOLDER"])
+    cache.clear()  # очистка кеша
     flash("Перепроверка всех решений запущена в фоне через Celery.", "info")
     return redirect(url_for("admin.index"))

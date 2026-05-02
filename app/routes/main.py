@@ -14,11 +14,13 @@ from flask_login import current_user
 import os
 from werkzeug.utils import secure_filename
 import uuid
+from app import cache
 
 bp = Blueprint("main", __name__)
 
 
 @bp.route("/")
+@cache.cached(timeout=60)
 def index():
     assignments = Assignment.query.order_by(Assignment.created_at.desc()).all()
     return render_template(
@@ -95,6 +97,7 @@ def submit_assignment(assignment_id):
 
         db.session.add(submission)
         db.session.commit()
+        cache.clear()
 
         # === Автоматическая проверка с учётом языка ===
         if assignment.check_type == "auto":

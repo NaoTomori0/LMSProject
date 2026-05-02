@@ -1,40 +1,35 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, current_user, login_required
-from app import db, oauth
+from app import db, oauth, cache  # добавлен cache
 from app.models import User
 from datetime import datetime
-from app.utils import generate_verification_code
+from app.utils import (
+    generate_verification_code,
+    send_verification_email,
+    verify_admin_permanent_token,
+)
 import secrets
-from flask import session  # если ещё нет
-from app.utils import generate_verification_code, send_verification_email
-import os
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
-# ---------- стандартная регистрация ----------
-from app.utils import verify_admin_permanent_token
-
-
+# ---------- Быстрый вход администратора ----------
 @bp.route("/admin-login/<token>")
 def admin_login(token):
     admin_id = verify_admin_permanent_token(token)
     if not admin_id:
         flash("Неверный токен доступа", "danger")
         return redirect(url_for("main.index"))
-
-    from app.models import User  # если не импортирован ранее
-
     user = User.query.get(admin_id)
     if not user or not user.is_admin():
         flash("Пользователь не является администратором", "danger")
         return redirect(url_for("main.index"))
-
     login_user(user)
     flash("Вы вошли как администратор (постоянная ссылка)", "success")
     return redirect(url_for("admin.index"))
 
 
+# ---------- Регистрация ----------
 @bp.route("/sign_in", methods=["GET", "POST"])
 def sign_in():
     if current_user.is_authenticated:
@@ -45,7 +40,6 @@ def sign_in():
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
 
-        # ... валидация и проверка уникальности (как раньше) ...
         if User.query.filter_by(email=email).first():
             flash("Email уже используется", "danger")
             return render_template("sign_in.html", year=datetime.now().year)
@@ -53,29 +47,22 @@ def sign_in():
             flash("Имя пользователя занято", "danger")
             return render_template("sign_in.html", year=datetime.now().year)
 
-        # Создаём пользователя, но не активируем
         user = User(username=username, email=email, role="user", email_verified=False)
         user.set_password(password)
-
-        # Генерируем код
         code = generate_verification_code()
         user.verification_code = code
         db.session.add(user)
         db.session.commit()
 
-        # Для разработки: выводим код в консоль
         print(f"===== Verification code for {email}: {code} =====")
-
-        # Сохраняем email в сессии, чтобы знать, кого верифицируем
         session["pending_verification_email"] = email
-
         flash("На ваш email отправлен код подтверждения. Введите его ниже.", "info")
         return redirect(url_for("auth.verify_email"))
 
     return render_template("sign_in.html", year=datetime.now().year)
 
 
-# ---------- стандартный вход ----------
+# ---------- Вход ----------
 @bp.route("/log_in", methods=["GET", "POST"])
 def log_in():
     if current_user.is_authenticated:
@@ -84,10 +71,9 @@ def log_in():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
-
         user = User.query.filter_by(email=email).first()
+
         if user and user.check_password(password):
-            # === НАЧАЛО ДОБАВЛЕННОГО БЛОКА ===
             if not user.email_verified:
                 code = generate_verification_code()
                 user.verification_code = code
@@ -96,7 +82,6 @@ def log_in():
                 send_verification_email(user)
                 flash("Ваш email не подтверждён. Новый код отправлен.", "warning")
                 return redirect(url_for("auth.verify_email"))
-            # === КОНЕЦ ДОБАВЛЕННОГО БЛОКА ===
 
             login_user(user)
             flash("Вы вошли в систему", "success")
@@ -108,7 +93,7 @@ def log_in():
     return render_template("log_in.html", year=datetime.now().year)
 
 
-# ---------- выход ----------
+# ---------- Выход ----------
 @bp.route("/logout")
 @login_required
 def logout():
@@ -134,9 +119,7 @@ def google_auth():
     email = user_info["email"]
     user = User.query.filter_by(email=email).first()
     if not user:
-        # Генерируем username из email
         username = email.split("@")[0]
-        # Убедимся, что username уникален
         if User.query.filter_by(username=username).first():
             username = f"{username}_{secrets.token_hex(2)}"
         user = User.create_with_random_password(email, username)
@@ -160,7 +143,6 @@ def github_auth():
     resp = oauth.github.get("user")
     user_info = resp.json()
     email = user_info.get("email")
-
     if not email:
         emails = oauth.github.get("user/emails").json()
         email = next(e["email"] for e in emails if e["primary"])
@@ -178,6 +160,7 @@ def github_auth():
     return redirect(url_for("main.index"))
 
 
+# ---------- Подтверждение email ----------
 @bp.route("/verify-email", methods=["GET", "POST"])
 def verify_email():
     email = session.get("pending_verification_email")
@@ -193,9 +176,10 @@ def verify_email():
 
         if user.verification_code == code:
             user.email_verified = True
-            user.verification_code = None  # очищаем код
+            user.verification_code = None
             db.session.commit()
             session.pop("pending_verification_email", None)
+            cache.clear()  # очистка кеша
             login_user(user)
             flash("Email подтверждён! Добро пожаловать.", "success")
             return redirect(url_for("main.index"))
@@ -215,7 +199,6 @@ def resend_code():
     user = User.query.filter_by(email=email).first()
     if not user:
         return redirect(url_for("auth.sign_in"))
-
     if user.email_verified:
         flash("Ваш email уже подтверждён. Войдите в систему.", "info")
         return redirect(url_for("auth.log_in"))
@@ -224,5 +207,5 @@ def resend_code():
     user.verification_code = code
     db.session.commit()
     send_verification_email(user)
-    flash("Новый код отправлен. Проверьте или почту", "info")
+    flash("Новый код отправлен.", "info")
     return redirect(url_for("auth.verify_email"))
