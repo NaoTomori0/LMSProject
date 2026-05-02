@@ -168,7 +168,7 @@ def new_assignment():
         cache.clear()  # очистка кеша
         flash("Задание создано", "success")
         return redirect(url_for("admin.index"))
-    return render_template("admin/new_assignment.html", scripts=scripts)
+    return render_template("admin/new_assignment.html", scripts=scripts, groups=groups)
 
 
 @bp.route("/assignment/<int:id>/delete", methods=["POST"])
