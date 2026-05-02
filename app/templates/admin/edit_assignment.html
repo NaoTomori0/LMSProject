@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="container" style="max-width: 600px;">
+    <h1>Редактирование задания «{{ assignment.title }}»</h1>
+    <form method="POST">
+        <div class="mb-3">
+            <label for="title" class="form-label">Название</label>
+            <input type="text" class="form-control" id="title" name="title" value="{{ assignment.title }}" required>
+        </div>
+        <div class="mb-3">
+            <label for="description" class="form-label">Описание</label>
+            <textarea class="form-control" id="description" name="description"
+                rows="4">{{ assignment.description or '' }}</textarea>
+        </div>
+        <div class="mb-3">
+            <label for="check_type" class="form-label">Тип проверки</label>
+            <select class="form-select" id="check_type" name="check_type">
+                <option value="manual" {% if assignment.check_type=='manual' %}selected{% endif %}>Ручная</option>
+                <option value="auto" {% if assignment.check_type=='auto' %}selected{% endif %}>Автоматическая (скрипт)
+                </option>
+                <option value="quiz" {% if assignment.check_type=='quiz' %}selected{% endif %}>Тест</option>
+            </select>
+        </div>
+
+        <!-- Блок выбора скрипта (управление через JS ниже) -->
+        <div id="auto-script" style="display: none;">
+            <div class="mb-3">
+                <label for="script_id" class="form-label">Скрипт проверки
+                    (универсальный)</label>
+                <select class="form-select" id="script_id" name="script_id">
+                    <option value>-- Не выбран --</option>
+                    {% for s in scripts %}
+                    <option value="{{ s.id }}" {% if assignment.language_scripts.first() and
+                        assignment.language_scripts.first().test_script_id==s.id %}selected{% endif %}>
+                        {{ s.name }} ({{ s.language }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Выбор группы -->
+        <div class="mb-3">
+            <label for="group_id" class="form-label">Группа (если задание только
+                для группы)</label>
+            <select class="form-select" id="group_id" name="group_id">
+                <option value>-- Все (публичное) --</option>
+                {% for group in groups %}
+                <option value="{{ group.id }}" {% if assignment.group_id==group.id %}selected{% endif %}>{{ group.name
+                    }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="is_public" name="is_public" {% if assignment.is_public
+                and not assignment.group_id %}checked{% endif %}>
+            <label class="form-check-label" for="is_public">Публичное (видят
+                гости и все пользователи)</label>
+        </div>
+        <button type="submit" class="btn btn-primary">Сохранить
+            изменения</button>
+        <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">Отмена</a>
+    </form>
+</div>
+
+<script>
+    const checkType = document.getElementById('check_type');
+    const autoDiv = document.getElementById('auto-script');
+    const groupSelect = document.getElementById('group_id');
+    const publicCheck = document.getElementById('is_public');
+
+    function toggleAuto() {
+        // Переключаем видимость блока скриптов
+        autoDiv.style.display = checkType.value === 'auto' ? 'block' : 'none';
+    }
+
+    function togglePublic() {
+        // Если выбрана группа, отключаем чекбокс публичности
+        if (groupSelect.value) {
+            publicCheck.checked = false;
+            publicCheck.disabled = true;
+        } else {
+            publicCheck.disabled = false;
+        }
+    }
+
+    // Слушатели событий
+    checkType.addEventListener('change', toggleAuto);
+    groupSelect.addEventListener('change', togglePublic);
+
+    // Инициализация состояния при загрузке страницы
+    window.addEventListener('DOMContentLoaded', () => {
+        toggleAuto();
+        togglePublic();
+    });
+</script>
+{% endblock %}

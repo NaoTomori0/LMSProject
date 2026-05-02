@@ -2,7 +2,8 @@
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Панель администратора</h1>
-        <a href="{{ url_for('admin.new_assignment') }}" class="btn btn-success">+ Новое задание
+        <a href="{{ url_for('admin.new_assignment') }}" class="btn btn-success">
+            + Новое задание
         </a
     >
     </div>
@@ -32,6 +33,7 @@
                     <td>{{ a.check_type }}</td>
                     <td>{{ 'Да' if a.is_public else 'Нет' }}</td>
                     <td>
+                        <a href="{{ url_for('admin.edit_assignment', id=a.id) }}" class="btn btn-sm btn-primary">Ред.</a>
                         <form method="POST" action="{{ url_for('admin.delete_assignment', id=a.id) }}" style="display: inline">
                             <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Удалить задание?');">
                                 Удалить
@@ -73,7 +75,8 @@
                     <td>{{ s.score if s.score is not none else '-' }}</td>
                     <td>{{ s.created_at | localtime(utc_offset) }}</td>
                     <td>
-                        <a href="{{ url_for('admin.view_submission', id=s.id) }}" class="btn btn-sm btn-outline-primary">Проверить
+                        <a href="{{ url_for('admin.view_submission', id=s.id) }}" class="btn btn-sm btn-outline-primary">
+                            Проверить
                         </a
             >
                     </td>

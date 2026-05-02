@@ -172,6 +172,79 @@ def new_assignment():
     return render_template("admin/new_assignment.html", scripts=scripts, groups=groups)
 
 
+@bp.route("/assignment/<int:id>/edit", methods=["GET", "POST"])
+@login_required
+@admin_required
+def edit_assignment(id):
+    assignment = Assignment.query.get_or_404(id)
+    scripts = TestScript.query.all()
+    groups = Group.query.all()
+
+    if request.method == "POST":
+        assignment.title = request.form.get("title")
+        assignment.description = request.form.get("description")
+        old_check_type = assignment.check_type
+        assignment.check_type = request.form.get("check_type", "manual")
+        group_id = request.form.get("group_id", type=int) or None
+        assignment.group_id = group_id
+        assignment.is_public = (
+            False if group_id else request.form.get("is_public") == "on"
+        )
+
+        # Удаляем старые привязки скриптов
+        AssignmentScript.query.filter_by(assignment_id=assignment.id).delete()
+
+        # Если выбран автоматический тип и скрипт – создаём новые привязки
+        if assignment.check_type == "auto":
+            script_id = request.form.get("script_id", type=int)
+            if script_id:
+                script = TestScript.query.get(script_id)
+                if script:
+                    languages = ["python", "cpp", "javascript", "java"]
+                    for lang in languages:
+                        link = AssignmentScript(
+                            assignment_id=assignment.id,
+                            test_script_id=script.id,
+                            language=lang,
+                        )
+                        db.session.add(link)
+
+        db.session.commit()
+        cache.clear()
+
+        # Запускаем соответствующую перепроверку
+        if assignment.check_type == "auto":
+            # Запускаем полную перепроверку всех решений
+            recheck_all_task.delay(assignment.id, current_app.config["UPLOAD_FOLDER"])
+            flash(
+                "Задание обновлено. Запущена полная перепроверка всех решений.",
+                "success",
+            )
+        else:
+            # Для ручной проверки сбрасываем статус у всех отправленных решений
+            subs = Submission.query.filter_by(assignment_id=assignment.id).all()
+            for sub in subs:
+                if sub.status != "pending":
+                    sub.status = "pending"
+                    sub.score = None
+                    sub.feedback = None
+            db.session.commit()
+            flash(
+                "Задание обновлено. Статус всех решений сброшен на 'ожидает проверки'.",
+                "info",
+            )
+
+        return redirect(url_for("admin.index"))
+
+    # GET – заполняем форму
+    return render_template(
+        "admin/edit_assignment.html",
+        assignment=assignment,
+        scripts=scripts,
+        groups=groups,
+    )
+
+
 @bp.route("/assignment/<int:id>/delete", methods=["POST"])
 @login_required
 @admin_required
