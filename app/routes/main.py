@@ -98,48 +98,19 @@ def submit_assignment(assignment_id):
 
         # === Автоматическая проверка с учётом языка ===
         if assignment.check_type == "auto":
-            # Ищем подходящий скрипт для задания и выбранного языка
-            assignment_script = AssignmentScript.query.filter_by(
-                assignment_id=assignment.id, language=language
-            ).first()
-            script = assignment_script.test_script if assignment_script else None
+            try:
+                from app.tasks import check_submission_task
 
-            if script:
-                from app.utils import run_check_docker
-
-                if uploaded_filenames:
-                    input_path = os.path.join(
-                        current_app.config["UPLOAD_FOLDER"], uploaded_filenames[0]
-                    )
-                    is_file = True
-                else:
-                    input_path = submission.answer_text or ""
-                    is_file = False
-
-                try:
-                    result = run_check_docker(
-                        script.script_body,
-                        input_path,
-                        is_file,
-                        language=submission.language,
-                    )
-                    submission.status = "passed" if result.get("passed") else "failed"
-                    submission.score = result.get("score", 0)
-                    submission.feedback = result.get("feedback", "")
-                    db.session.commit()
-                    flash(
-                        f'Автопроверка: {"✅ Пройдено" if submission.status == "passed" else "❌ Не пройдено"}. '
-                        f"{submission.feedback}",
-                        "success" if submission.status == "passed" else "warning",
-                    )
-                except Exception as e:
-                    flash(f"Ошибка при выполнении проверки: {e}", "danger")
-            else:
-                flash(
-                    f"Для языка {language} авто-проверка не настроена. "
-                    "Решение сохранено, ожидает ручной проверки.",
-                    "warning",
+                task = check_submission_task.delay(
+                    submission.id, current_app.config["UPLOAD_FOLDER"]
                 )
+                flash(
+                    "Ваше решение принято и поставлено в очередь на проверку. Результат появится в личном кабинете.",
+                    "info",
+                )
+            except Exception as e:
+                flash(f"Ошибка при выполнении проверки: {e}", "danger")
+
         else:
             flash("Решение успешно отправлено на проверку!", "success")
 

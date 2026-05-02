@@ -14,7 +14,9 @@ from functools import wraps
 from app import db, create_app
 from app.models import Assignment, Submission, TestScript, AssignmentScript
 import os
-import threading
+
+# import threading
+from app.tasks import recheck_all_task
 from app.utils import run_check_docker
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -318,13 +320,6 @@ def recheck_all(id):
         flash("Для этого задания не настроен автотест", "warning")
         return redirect(url_for("admin.index"))
 
-    thread = threading.Thread(
-        target=recheck_all_background,
-        args=(assignment.id, current_app.config["UPLOAD_FOLDER"]),
-    )
-    thread.start()
-    flash(
-        "Перепроверка всех решений запущена в фоне. Обновите страницу через некоторое время.",
-        "info",
-    )
+    recheck_all_task.delay(assignment.id, current_app.config["UPLOAD_FOLDER"])
+    flash("Перепроверка всех решений запущена в фоне через Celery.", "info")
     return redirect(url_for("admin.index"))
