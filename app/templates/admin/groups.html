@@ -4,7 +4,6 @@
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Группы</h1>
     <a href="{{ url_for('admin.new_group') }}" class="btn btn-success">+ Новая группа</a>
-    <a href="{{ url_for('admin.list_invites', id=g.id) }}" class="btn btn-sm btn-outline-primary">Приглашения</a>
   </div>
 
   {% if groups %}
@@ -26,6 +25,7 @@
               <td>{{ g.members|length }}</td>
               <td>
                 <a href="{{ url_for('admin.manage_members', id=g.id) }}" class="btn btn-sm btn-info">Участники</a>
+                <a href="{{ url_for('admin.list_invites', id=g.id) }}" class="btn btn-sm btn-outline-primary">Приглашения</a>
                 <a href="{{ url_for('admin.edit_group', id=g.id) }}" class="btn btn-sm btn-warning">Ред.</a>
                 <form method="POST" action="{{ url_for('admin.delete_group', id=g.id) }}" style="display:inline">
                   <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Удалить группу?')">Удалить</button>
