@@ -11,7 +11,7 @@ from flask import (
 )
 from flask_login import login_required, current_user
 from functools import wraps
-from app import db, create_app, cache  # <-- добавлен cache
+from app import db, create_app, cache
 from app.models import (
     Assignment,
     Submission,
@@ -73,7 +73,7 @@ def new_script():
         )
         db.session.add(script)
         db.session.commit()
-        cache.clear()  # очистка кеша
+        cache.clear()
         flash("Скрипт создан", "success")
         return redirect(url_for("admin.list_scripts"))
     return render_template("admin/script_form.html", script=None)
@@ -91,17 +91,13 @@ def edit_script(id):
         script.script_body = request.form.get("script_body", "").strip()
         db.session.commit()
         cache.clear()
-
-        affected_assignments = AssignmentScript.query.filter_by(
-            test_script_id=script.id
-        ).all()
-        assignment_ids = list(set([a.assignment_id for a in affected_assignments]))
-
+        # Запуск перепроверки зависимых заданий
+        affected = AssignmentScript.query.filter_by(test_script_id=script.id).all()
+        assignment_ids = list(set([a.assignment_id for a in affected]))
         for assignment_id in assignment_ids:
             recheck_all_task.delay(assignment_id, current_app.config["UPLOAD_FOLDER"])
-
         flash(
-            f"Скрипт обновлён. Запущена полная перепроверка для {len(assignment_ids)} заданий.",
+            f"Скрипт обновлён. Запущена перепроверка для {len(assignment_ids)} заданий.",
             "success",
         )
         return redirect(url_for("admin.list_scripts"))
@@ -115,7 +111,7 @@ def delete_script(id):
     script = TestScript.query.get_or_404(id)
     db.session.delete(script)
     db.session.commit()
-    cache.clear()  # очистка кеша
+    cache.clear()
     flash("Скрипт удалён", "info")
     return redirect(url_for("admin.list_scripts"))
 
@@ -137,7 +133,7 @@ def index():
 
 
 # -------------------------------------------------------------
-# Создание / удаление задания
+# Создание задания
 # -------------------------------------------------------------
 @bp.route("/assignment/new", methods=["GET", "POST"])
 @login_required
@@ -222,7 +218,6 @@ def new_assignment():
                 db.session.flush()
 
                 opt_texts = request.form.getlist(f"option_text_{idx}[]")
-                # Для single приходит одно значение (если radio), для multiple – список
                 if q_type == "single":
                     correct_value = request.form.get(f"option_correct_{idx}")
                     correct_indices = (
@@ -251,29 +246,36 @@ def new_assignment():
     return render_template("admin/new_assignment.html", scripts=scripts, groups=groups)
 
 
-@bp.route("/assignment/new", methods=["GET", "POST"])
+# -------------------------------------------------------------
+# Редактирование задания
+# -------------------------------------------------------------
+@bp.route("/assignment/<int:id>/edit", methods=["GET", "POST"])
 @login_required
 @admin_required
-def new_assignment():
+def edit_assignment(id):
+    assignment = Assignment.query.get_or_404(id)
     scripts = TestScript.query.all()
     groups = Group.query.all()
-    if request.method == "POST":
-        title = request.form.get("title")
-        description = request.form.get("description")
-        check_type = request.form.get("check_type", "manual")
 
-        # Дедлайн и попытки
+    # Текущая видимость для формы
+    if assignment.is_public:
+        current_visibility = "public"
+    elif assignment.group_id:
+        current_visibility = "group"
+    else:
+        current_visibility = "authenticated"
+
+    if request.method == "POST":
+        assignment.title = request.form.get("title")
+        assignment.description = request.form.get("description")
+        assignment.check_type = request.form.get("check_type", "manual")
+
         deadline_str = request.form.get("deadline", "").strip()
-        deadline = (
+        assignment.deadline = (
             datetime.strptime(deadline_str, "%Y-%m-%dT%H:%M") if deadline_str else None
         )
-        max_attempts = request.form.get("max_attempts", 0, type=int)
+        assignment.max_attempts = request.form.get("max_attempts", 0, type=int)
 
-        script_id = (
-            request.form.get("script_id", type=int) if check_type == "auto" else None
-        )
-
-        # Видимость
         visibility = request.form.get("visibility", "public")
         group_id = None
         is_public = False
@@ -287,37 +289,40 @@ def new_assignment():
             if not group_id:
                 flash("Выберите группу для группового задания", "danger")
                 return render_template(
-                    "admin/new_assignment.html", scripts=scripts, groups=groups
+                    "admin/edit_assignment.html",
+                    assignment=assignment,
+                    scripts=scripts,
+                    groups=groups,
+                    current_visibility=current_visibility,
                 )
+        assignment.is_public = is_public
+        assignment.group_id = group_id
 
-        assignment = Assignment(
-            title=title,
-            description=description,
-            check_type=check_type,
-            is_public=is_public,
-            group_id=group_id,
-            deadline=deadline,
-            max_attempts=max_attempts,
-        )
-        db.session.add(assignment)
-        db.session.flush()
+        # Удаляем старые привязки скриптов и вопросы
+        AssignmentScript.query.filter_by(assignment_id=assignment.id).delete()
+        QuizOption.query.filter(
+            QuizOption.question.has(assignment_id=assignment.id)
+        ).delete()
+        QuizAnswer.query.filter(
+            QuizAnswer.question.has(assignment_id=assignment.id)
+        ).delete()
+        QuizQuestion.query.filter_by(assignment_id=assignment.id).delete()
 
-        # Привязка скриптов для auto
-        if check_type == "auto" and script_id:
-            script = TestScript.query.get(script_id)
-            if script:
-                languages = ["python", "cpp", "javascript", "java"]
-                for lang in languages:
-                    db.session.add(
-                        AssignmentScript(
-                            assignment_id=assignment.id,
-                            test_script_id=script.id,
-                            language=lang,
+        if assignment.check_type == "auto":
+            script_id = request.form.get("script_id", type=int)
+            if script_id:
+                script = TestScript.query.get(script_id)
+                if script:
+                    for lang in ["python", "cpp", "javascript", "java"]:
+                        db.session.add(
+                            AssignmentScript(
+                                assignment_id=assignment.id,
+                                test_script_id=script.id,
+                                language=lang,
+                            )
                         )
-                    )
 
-        # Сохранение вопросов для quiz
-        if check_type == "quiz":
+        if assignment.check_type == "quiz":
             question_texts = request.form.getlist("question_text")
             question_types = request.form.getlist("question_type")
             for idx, q_text in enumerate(question_texts):
@@ -334,7 +339,6 @@ def new_assignment():
                 db.session.flush()
 
                 opt_texts = request.form.getlist(f"option_text_{idx}[]")
-                # Для single приходит одно значение (если radio), для multiple – список
                 if q_type == "single":
                     correct_value = request.form.get(f"option_correct_{idx}")
                     correct_indices = (
@@ -357,12 +361,38 @@ def new_assignment():
 
         db.session.commit()
         cache.clear()
-        flash("Задание создано", "success")
+
+        # Аннулирование решений для потерявших доступ
+        if assignment.group_id:
+            group = Group.query.get(assignment.group_id)
+            subs = Submission.query.filter_by(assignment_id=assignment.id).all()
+            for sub in subs:
+                if sub.user and sub.user not in group.members:
+                    sub.status = "failed"
+                    sub.score = 0
+                    sub.feedback = "Задание стало доступно только участникам группы. Ваше решение аннулировано."
+            db.session.commit()
+
+        if assignment.check_type == "auto":
+            recheck_all_task.delay(assignment.id, current_app.config["UPLOAD_FOLDER"])
+            flash("Задание обновлено. Запущена полная перепроверка.", "success")
+        else:
+            flash("Задание обновлено.", "success")
+
         return redirect(url_for("admin.index"))
 
-    return render_template("admin/new_assignment.html", scripts=scripts, groups=groups)
+    return render_template(
+        "admin/edit_assignment.html",
+        assignment=assignment,
+        scripts=scripts,
+        groups=groups,
+        current_visibility=current_visibility,
+    )
 
 
+# -------------------------------------------------------------
+# Удаление задания
+# -------------------------------------------------------------
 @bp.route("/assignment/<int:id>/delete", methods=["POST"])
 @login_required
 @admin_required
@@ -370,7 +400,7 @@ def delete_assignment(id):
     a = Assignment.query.get_or_404(id)
     db.session.delete(a)
     db.session.commit()
-    cache.clear()  # очистка кеша
+    cache.clear()
     flash("Задание удалено", "info")
     return redirect(url_for("admin.index"))
 
@@ -390,18 +420,17 @@ def view_submission(id):
         if status not in ("pending", "passed", "failed", "checked"):
             flash("Неверный статус", "danger")
             return redirect(url_for("admin.view_submission", id=id))
-
         submission.status = status
         submission.score = score
         submission.feedback = feedback
         db.session.commit()
-        cache.clear()  # очистка кеша
+        cache.clear()
         return redirect(url_for("admin.index"))
     return render_template("admin/submission_detail.html", submission=submission)
 
 
 # -------------------------------------------------------------
-# Скачивание прикреплённого файла
+# Скачивание файла
 # -------------------------------------------------------------
 @bp.route("/submission/<int:submission_id>/uploads/<path:filename>")
 @login_required
@@ -416,7 +445,7 @@ def download_file(submission_id, filename):
 
 
 # -------------------------------------------------------------
-# Автоматическая проверка (один раз, только непроверенные)
+# Авто-проверка (только pending)
 # -------------------------------------------------------------
 @bp.route("/assignment/<int:id>/run-auto-check")
 @login_required
@@ -469,13 +498,13 @@ def run_auto_check(id):
             sub.feedback = f"Ошибка: {str(e)}"
 
     db.session.commit()
-    cache.clear()  # очистка кеша
+    cache.clear()
     flash(f"Проверено {count} решений", "success")
     return redirect(url_for("admin.index"))
 
 
 # -------------------------------------------------------------
-# Фоновая перепроверка всех решений (через Celery)
+# Массовая перепроверка (через Celery)
 # -------------------------------------------------------------
 @bp.route("/assignment/<int:id>/recheck-all")
 @login_required
@@ -487,12 +516,14 @@ def recheck_all(id):
         return redirect(url_for("admin.index"))
 
     recheck_all_task.delay(assignment.id, current_app.config["UPLOAD_FOLDER"])
-    cache.clear()  # очистка кеша
+    cache.clear()
     flash("Перепроверка всех решений запущена в фоне через Celery.", "info")
     return redirect(url_for("admin.index"))
 
 
-# Новые маршруты для групп
+# -------------------------------------------------------------
+# Управление группами
+# -------------------------------------------------------------
 @bp.route("/groups")
 @login_required
 @admin_required
@@ -510,21 +541,16 @@ def new_group():
         if not name:
             flash("Введите название группы", "danger")
             return render_template("admin/group_form.html", group=None)
-
-        # Проверяем уникальность
         if Group.query.filter_by(name=name).first():
             flash("Группа с таким названием уже существует", "danger")
             return render_template("admin/group_form.html", group=None)
-
         group = Group(name=name, created_by=current_user.id)
-        # Добавляем создателя (админа) в группу автоматически
-        group.members.append(current_user)
+        group.members.append(current_user)  # админ автоматически в группе
         db.session.add(group)
         db.session.commit()
         cache.clear()
         flash("Группа создана", "success")
         return redirect(url_for("admin.list_groups"))
-
     return render_template("admin/group_form.html", group=None)
 
 
@@ -538,19 +564,15 @@ def edit_group(id):
         if not name:
             flash("Название не может быть пустым", "danger")
             return render_template("admin/group_form.html", group=group)
-
-        # Проверка уникальности
         existing = Group.query.filter(Group.name == name, Group.id != id).first()
         if existing:
             flash("Группа с таким названием уже есть", "danger")
             return render_template("admin/group_form.html", group=group)
-
         group.name = name
         db.session.commit()
         cache.clear()
         flash("Группа обновлена", "success")
         return redirect(url_for("admin.list_groups"))
-
     return render_template("admin/group_form.html", group=group)
 
 
@@ -566,7 +588,7 @@ def delete_group(id):
     return redirect(url_for("admin.list_groups"))
 
 
-# Управление участниками
+# Участники
 @bp.route("/groups/<int:id>/members")
 @login_required
 @admin_required
@@ -585,7 +607,6 @@ def add_member(id):
     if not user_id:
         flash("Выберите пользователя", "danger")
         return redirect(url_for("admin.manage_members", id=id))
-
     user = User.query.get_or_404(user_id)
     if user not in group.members:
         group.members.append(user)
@@ -603,7 +624,6 @@ def add_member(id):
 def remove_member(id, user_id):
     group = Group.query.get_or_404(id)
     user = User.query.get_or_404(user_id)
-    # Запрет удаления администраторов
     if user.is_admin():
         flash("Нельзя удалить администратора из группы", "danger")
         return redirect(url_for("admin.manage_members", id=id))
@@ -615,6 +635,7 @@ def remove_member(id, user_id):
     return redirect(url_for("admin.manage_members", id=id))
 
 
+# Приглашения
 @bp.route("/groups/<int:id>/invites")
 @login_required
 @admin_required
