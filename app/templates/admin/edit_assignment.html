@@ -124,17 +124,16 @@
 {% block scripts %}
 {{ super() }}
 <script>
-  // ==================== Конвертация дедлайна в UTC ====================
+  // ---------- Конвертация дедлайна ----------
   function getUTCOffsetMinutes() {
     const match = document.cookie.match(/(?:^|;\s*)timezone_offset=([^;]*)/);
     return match ? parseInt(match[1]) : -new Date().getTimezoneOffset();
   }
 
-  // При загрузке страницы: если есть deadline (UTC), показываем в локальном времени
   function displayDeadlineInLocal() {
     const input = document.getElementById('deadline');
     if (!input.value) return;
-    const utcDate = new Date(input.value + 'Z');  // интерпретируем как UTC
+    const utcDate = new Date(input.value + 'Z');
     if (isNaN(utcDate)) return;
     const offsetMinutes = getUTCOffsetMinutes();
     const localDate = new Date(utcDate.getTime() - offsetMinutes * 60000);
@@ -147,7 +146,6 @@
   }
   window.addEventListener('DOMContentLoaded', displayDeadlineInLocal);
 
-  // Перед отправкой переводим локальное время обратно в UTC
   function convertDeadlineToUTC() {
     const input = document.getElementById('deadline');
     if (!input.value) return;
@@ -162,11 +160,9 @@
     const min = String(utcDate.getUTCMinutes()).padStart(2, '0');
     input.value = `${yyyy}-${mm}-${dd}T${hh}:${min}`;
   }
+  document.getElementById('assignment-form').addEventListener('submit', convertDeadlineToUTC);
 
-  const form = document.getElementById('assignment-form');
-  form.addEventListener('submit', convertDeadlineToUTC);
-
-  // ==================== Логика переключения блоков ====================
+  // ---------- Переключение блоков ----------
   const checkType = document.getElementById("check_type");
   const autoDiv = document.getElementById("auto-script");
   const quizSection = document.getElementById("quiz-section");
@@ -190,7 +186,7 @@
   radioGroup.addEventListener("change", toggleGroupSelect);
   window.addEventListener("DOMContentLoaded", toggleGroupSelect);
 
-  // ==================== Конструктор вопросов ====================
+  // ---------- Конструктор вопросов ----------
   let questionIndex = document.querySelectorAll("#questions-container .card").length;
 
   function updateOptionsForQuestion(card) {
