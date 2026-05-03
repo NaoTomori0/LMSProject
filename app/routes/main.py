@@ -10,7 +10,16 @@ from flask import (
 )
 from datetime import datetime
 from app import db, cache
-from app.models import Assignment, Submission, TestScript, AssignmentScript, GroupInvite
+from app.models import (
+    Assignment,
+    Submission,
+    TestScript,
+    AssignmentScript,
+    GroupInvite,
+    QuizAnswer,
+    QuizOption,
+    QuizQuestion,
+)
 from flask_login import current_user, login_required
 import os
 from werkzeug.utils import secure_filename
@@ -37,14 +46,45 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def grade_quiz(submission):
+    """Автоматически оценивает закрытые вопросы теста."""
+    total = 0
+    for answer in submission.quiz_answers:
+        question = answer.question
+        if question.question_type == "open":
+            continue
+        correct_ids = [str(o.id) for o in question.options if o.is_correct]
+        selected_ids = (answer.selected_options or "").split(",")
+        if question.question_type == "single":
+            if selected_ids == correct_ids:
+                answer.score = 1
+                total += 1
+            else:
+                answer.score = 0
+        elif question.question_type == "multiple":
+            if set(selected_ids) == set(correct_ids):
+                answer.score = 1
+                total += 1
+            else:
+                answer.score = 0
+    submission.score = total
+    open_count = QuizAnswer.query.filter(
+        QuizAnswer.submission_id == submission.id,
+        QuizAnswer.question.has(question_type="open"),
+    ).count()
+    if open_count == 0:
+        submission.status = "passed" if total > 0 else "failed"
+    else:
+        submission.status = "pending"
+
+
 # --------------------------------------------------------------
-# Главная страница со списком заданий (с учётом групп)
+# Главная страница
 # --------------------------------------------------------------
 @bp.route("/")
 @cache.cached(timeout=60, unless=lambda: current_user.is_authenticated)
 def index():
     if current_user.is_authenticated:
-        # Публичные задания + задания из групп пользователя
         user_group_ids = [g.id for g in current_user.groups]
         assignments = (
             Assignment.query.filter(
@@ -66,13 +106,27 @@ def index():
 
 
 # --------------------------------------------------------------
-# Отправка решения (с проверкой доступа и отложенной проверкой в Celery)
+# Отправка решения
 # --------------------------------------------------------------
 @bp.route("/assignment/<int:assignment_id>/submit", methods=["GET", "POST"])
 def submit_assignment(assignment_id):
     assignment = Assignment.query.get_or_404(assignment_id)
 
-    # Проверка доступа к заданию
+    # Проверка дедлайна
+    if assignment.deadline and datetime.utcnow() > assignment.deadline:
+        flash("Срок сдачи задания истёк.", "danger")
+        return redirect(url_for("main.index"))
+
+    # Проверка попыток
+    if assignment.max_attempts > 0 and current_user.is_authenticated:
+        attempt_count = Submission.query.filter_by(
+            assignment_id=assignment.id, user_id=current_user.id
+        ).count()
+        if attempt_count >= assignment.max_attempts:
+            flash("Вы исчерпали лимит попыток для этого задания.", "danger")
+            return redirect(url_for("main.index"))
+
+    # Проверка доступа (группы)
     if not assignment.is_public:
         if not current_user.is_authenticated:
             abort(403)
@@ -86,16 +140,45 @@ def submit_assignment(assignment_id):
         files = request.files.getlist("files")
         language = request.form.get("language", "python")
 
-        if not answer_text and (not files or all(f.filename == "" for f in files)):
-            flash("Нужно ввести текст решения или загрузить файл(ы)", "danger")
-            return render_template("submit.html", assignment=assignment)
-
-        # Создаём заявку
+        # Создание заявки
         submission = Submission(
             assignment_id=assignment.id,
             answer_text=answer_text,
             language=language,
         )
+        db.session.add(submission)
+        db.session.flush()  # чтобы получить submission.id
+
+        # Обработка тестовых ответов
+        if assignment.check_type == "quiz":
+            for question in assignment.quiz_questions.order_by(QuizQuestion.order):
+                if question.question_type in ("single", "multiple"):
+                    selected = request.form.getlist(f"q_{question.id}")
+                    selected_str = ",".join(selected) if selected else ""
+                    answer = QuizAnswer(
+                        submission_id=submission.id,
+                        question_id=question.id,
+                        selected_options=selected_str,
+                    )
+                else:
+                    open_answer = request.form.get(f"q_{question.id}", "")
+                    answer = QuizAnswer(
+                        submission_id=submission.id,
+                        question_id=question.id,
+                        open_answer=open_answer,
+                    )
+                db.session.add(answer)
+
+            db.session.flush()
+            grade_quiz(submission)  # сразу оцениваем
+            db.session.commit()
+            cache.clear()
+            flash(
+                f"Тест принят. Ваш результат: {submission.score} балл(ов).", "success"
+            )
+            return redirect(url_for("main.index"))
+
+        # Если не тест, продолжаем заполнение
         if current_user.is_authenticated:
             submission.user_id = current_user.id
         else:
@@ -107,7 +190,7 @@ def submit_assignment(assignment_id):
             submission.guest_name = guest_name
             submission.guest_email = guest_email
 
-        # Сохраняем файлы
+        # Сохранение файлов
         uploaded_filenames = []
         for f in files:
             if f.filename == "":
@@ -120,27 +203,21 @@ def submit_assignment(assignment_id):
             filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], unique_name)
             f.save(filepath)
             uploaded_filenames.append(unique_name)
-
         if uploaded_filenames:
             submission.answer_file = ",".join(uploaded_filenames)
 
-        db.session.add(submission)
         db.session.commit()
         cache.clear()
 
-        # Автоматическая проверка через Celery (если задание с автотестом)
+        # Авто- или ручная проверка
         if assignment.check_type == "auto":
             try:
                 from app.tasks import check_submission_task
 
-                task = check_submission_task.delay(
+                check_submission_task.delay(
                     submission.id, current_app.config["UPLOAD_FOLDER"]
                 )
-                flash(
-                    "Ваше решение принято и поставлено в очередь на проверку. "
-                    "Результат появится в личном кабинете.",
-                    "info",
-                )
+                flash("Решение принято и поставлено в очередь на проверку.", "info")
             except Exception as e:
                 flash(f"Ошибка при постановке в очередь проверки: {e}", "danger")
         else:
@@ -151,6 +228,9 @@ def submit_assignment(assignment_id):
     return render_template("submit.html", assignment=assignment)
 
 
+# --------------------------------------------------------------
+# Приглашение в группу
+# --------------------------------------------------------------
 @bp.route("/join/<token>")
 @login_required
 def join_group(token):
@@ -158,19 +238,16 @@ def join_group(token):
     if not invite:
         flash("Приглашение недействительно или просрочено.", "danger")
         return redirect(url_for("main.index"))
-
     if invite.expires_at and invite.expires_at < datetime.utcnow():
         invite.is_active = False
         db.session.commit()
         flash("Срок действия приглашения истёк.", "danger")
         return redirect(url_for("main.index"))
-
     if invite.max_uses > 0 and invite.uses >= invite.max_uses:
         invite.is_active = False
         db.session.commit()
         flash("Лимит использований приглашения исчерпан.", "danger")
         return redirect(url_for("main.index"))
-
     group = invite.group
     if current_user in group.members:
         flash("Вы уже состоите в этой группе.", "info")

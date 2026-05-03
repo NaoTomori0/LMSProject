@@ -1,33 +1,32 @@
 {% extends "base.html" %} {% block body %}
 <div class="container" style="max-width: 400px; margin-top: 80px">
-    <h3 class="mb-3">Подтверждение email</h3>
-    <p>
-        Мы отправили 6-значный код на
-        <strong>{{ session['pending_verification_email'] }}</strong>
-        (проверьте
-    консоль сервера).
-    </p>
-    <form method="POST">
-        <div class="mb-3">
-            <label for="code" class="form-label">Код подтверждения</label>
-            <input
-                type="text"
-                class="form-control"
-                id="code"
-                name="code"
-                maxlength="6"
-                required
-            >
-        </div>
-        <button type="submit" class="btn btn-primary w-100">Подтвердить</button>
-    </form>
-    <!-- Новая ссылка -->
-    <p class="mt-3 text-center">
-        Не пришёл код?
-        <a href="{{ url_for('auth.resend_code') }}">Отправить снова</a>
-    </p>
-    <div class="mt-3 text-center">
-        <a href="{{ url_for('auth.sign_in') }}">Назад к регистрации</a>
+  <h3 class="mb-3">Подтверждение email</h3>
+  <p>
+    Мы отправили 6-значный код на
+    <strong>{{ session['pending_verification_email'] }}</strong>
+    (проверьте консоль сервера).
+  </p>
+  <form method="POST">
+    <div class="mb-3">
+      <label for="code" class="form-label">Код подтверждения</label>
+      <input
+        type="text"
+        class="form-control"
+        id="code"
+        name="code"
+        maxlength="6"
+        required
+      />
     </div>
+    <button type="submit" class="btn btn-primary w-100">Подтвердить</button>
+  </form>
+  <!-- Новая ссылка -->
+  <p class="mt-3 text-center">
+    Не пришёл код?
+    <a href="{{ url_for('auth.resend_code') }}">Отправить снова</a>
+  </p>
+  <div class="mt-3 text-center">
+    <a href="{{ url_for('auth.sign_in') }}">Назад к регистрации</a>
+  </div>
 </div>
 {% endblock %}

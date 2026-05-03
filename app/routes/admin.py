@@ -20,6 +20,9 @@ from app.models import (
     Group,
     User,
     GroupInvite,
+    QuizQuestion,
+    QuizOption,
+    QuizAnswer,
 )
 from datetime import datetime, timedelta
 import os
@@ -146,11 +149,19 @@ def new_assignment():
         title = request.form.get("title")
         description = request.form.get("description")
         check_type = request.form.get("check_type", "manual")
+
+        # Дедлайн и попытки
+        deadline_str = request.form.get("deadline", "").strip()
+        deadline = (
+            datetime.strptime(deadline_str, "%Y-%m-%dT%H:%M") if deadline_str else None
+        )
+        max_attempts = request.form.get("max_attempts", 0, type=int)
+
         script_id = (
             request.form.get("script_id", type=int) if check_type == "auto" else None
         )
 
-        # --- новая логика видимости ---
+        # Видимость
         visibility = request.form.get("visibility", "public")
         group_id = None
         is_public = False
@@ -173,21 +184,60 @@ def new_assignment():
             check_type=check_type,
             is_public=is_public,
             group_id=group_id,
+            deadline=deadline,
+            max_attempts=max_attempts,
         )
         db.session.add(assignment)
         db.session.flush()
 
+        # Привязка скриптов для auto
         if check_type == "auto" and script_id:
             script = TestScript.query.get(script_id)
             if script:
                 languages = ["python", "cpp", "javascript", "java"]
                 for lang in languages:
-                    link = AssignmentScript(
-                        assignment_id=assignment.id,
-                        test_script_id=script.id,
-                        language=lang,
+                    db.session.add(
+                        AssignmentScript(
+                            assignment_id=assignment.id,
+                            test_script_id=script.id,
+                            language=lang,
+                        )
                     )
-                    db.session.add(link)
+
+        # Сохранение вопросов для quiz
+        if check_type == "quiz":
+            question_texts = request.form.getlist("question_text")  # список текстов
+            question_types = request.form.getlist("question_type")  # типы
+            # Обработка каждой группы вариантов: option_text_{i}[] и option_correct_{i}[]
+            for idx, q_text in enumerate(question_texts):
+                if not q_text.strip():
+                    continue
+                q_type = question_types[idx] if idx < len(question_types) else "single"
+                question = QuizQuestion(
+                    assignment_id=assignment.id,
+                    question_text=q_text.strip(),
+                    question_type=q_type,
+                    order=idx,
+                )
+                db.session.add(question)
+                db.session.flush()
+
+                opt_texts = request.form.getlist(f"option_text_{idx}[]")
+                opt_corrects = request.form.getlist(
+                    f"option_correct_{idx}[]"
+                )  # значения – индексы
+                for opt_idx, opt_text in enumerate(opt_texts):
+                    if not opt_text.strip():
+                        continue
+                    is_correct = str(opt_idx) in opt_corrects
+                    db.session.add(
+                        QuizOption(
+                            question_id=question.id,
+                            option_text=opt_text.strip(),
+                            is_correct=is_correct,
+                        )
+                    )
+
         db.session.commit()
         cache.clear()
         flash("Задание создано", "success")
@@ -204,7 +254,7 @@ def edit_assignment(id):
     scripts = TestScript.query.all()
     groups = Group.query.all()
 
-    # Определяем текущее значение visibility для формы
+    # Определение текущего visibility для формы
     if assignment.is_public:
         current_visibility = "public"
     elif assignment.group_id:
@@ -216,6 +266,12 @@ def edit_assignment(id):
         assignment.title = request.form.get("title")
         assignment.description = request.form.get("description")
         assignment.check_type = request.form.get("check_type", "manual")
+
+        deadline_str = request.form.get("deadline", "").strip()
+        assignment.deadline = (
+            datetime.strptime(deadline_str, "%Y-%m-%dT%H:%M") if deadline_str else None
+        )
+        assignment.max_attempts = request.form.get("max_attempts", 0, type=int)
 
         visibility = request.form.get("visibility", "public")
         group_id = None
@@ -239,53 +295,78 @@ def edit_assignment(id):
         assignment.is_public = is_public
         assignment.group_id = group_id
 
-        # Удаляем старые привязки скриптов
+        # Удаляем старые привязки скриптов и вопросы
         AssignmentScript.query.filter_by(assignment_id=assignment.id).delete()
+        QuizOption.query.filter(
+            QuizOption.question.has(assignment_id=assignment.id)
+        ).delete()
+        QuizAnswer.query.filter(
+            QuizAnswer.question.has(assignment_id=assignment.id)
+        ).delete()
+        QuizQuestion.query.filter_by(assignment_id=assignment.id).delete()
 
         if assignment.check_type == "auto":
             script_id = request.form.get("script_id", type=int)
             if script_id:
                 script = TestScript.query.get(script_id)
                 if script:
-                    languages = ["python", "cpp", "javascript", "java"]
-                    for lang in languages:
-                        link = AssignmentScript(
-                            assignment_id=assignment.id,
-                            test_script_id=script.id,
-                            language=lang,
+                    for lang in ["python", "cpp", "javascript", "java"]:
+                        db.session.add(
+                            AssignmentScript(
+                                assignment_id=assignment.id,
+                                test_script_id=script.id,
+                                language=lang,
+                            )
                         )
-                        db.session.add(link)
+
+        if assignment.check_type == "quiz":
+            question_texts = request.form.getlist("question_text")
+            question_types = request.form.getlist("question_type")
+            for idx, q_text in enumerate(question_texts):
+                if not q_text.strip():
+                    continue
+                q_type = question_types[idx] if idx < len(question_types) else "single"
+                question = QuizQuestion(
+                    assignment_id=assignment.id,
+                    question_text=q_text.strip(),
+                    question_type=q_type,
+                    order=idx,
+                )
+                db.session.add(question)
+                db.session.flush()
+                opt_texts = request.form.getlist(f"option_text_{idx}[]")
+                opt_corrects = request.form.getlist(f"option_correct_{idx}[]")
+                for opt_idx, opt_text in enumerate(opt_texts):
+                    if not opt_text.strip():
+                        continue
+                    is_correct = str(opt_idx) in opt_corrects
+                    db.session.add(
+                        QuizOption(
+                            question_id=question.id,
+                            option_text=opt_text.strip(),
+                            is_correct=is_correct,
+                        )
+                    )
 
         db.session.commit()
         cache.clear()
 
-        # Проверка доступа (аннулирование решений тех, кто потерял доступ)
+        # Аннулирование решений для потерявших доступ
         if assignment.group_id:
             group = Group.query.get(assignment.group_id)
             subs = Submission.query.filter_by(assignment_id=assignment.id).all()
             for sub in subs:
-                has_access = False
-                if sub.user and sub.user in group.members:
-                    has_access = True
-                if not has_access:
+                if sub.user and sub.user not in group.members:
                     sub.status = "failed"
                     sub.score = 0
-                    sub.feedback = "Задание теперь доступно только для участников группы. Ваше решение аннулировано."
+                    sub.feedback = "Задание стало доступно только участникам группы. Ваше решение аннулировано."
             db.session.commit()
 
         if assignment.check_type == "auto":
             recheck_all_task.delay(assignment.id, current_app.config["UPLOAD_FOLDER"])
             flash("Задание обновлено. Запущена полная перепроверка.", "success")
         else:
-            # Сброс статуса только для тех, у кого остался доступ
-            subs = Submission.query.filter_by(assignment_id=assignment.id).all()
-            for sub in subs:
-                if sub.status != "failed" or "аннулировано" not in (sub.feedback or ""):
-                    sub.status = "pending"
-                    sub.score = None
-                    sub.feedback = None
-            db.session.commit()
-            flash("Задание обновлено. Статус актуальных решений сброшен.", "info")
+            flash("Задание обновлено.", "success")
 
         return redirect(url_for("admin.index"))
 

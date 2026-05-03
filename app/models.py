@@ -70,6 +70,9 @@ class AssignmentScript(db.Model):
 
     test_script = db.relationship("TestScript")
 
+    deadline = db.Column(db.DateTime, nullable=True)  # дедлайн
+    max_attempts = db.Column(db.Integer, default=0)  # 0 – без ограничений
+
 
 # ------------------------------------------------------------
 # User
@@ -158,3 +161,63 @@ class GroupInvite(db.Model):
         "Group",
         backref=db.backref("invites", lazy="dynamic", cascade="all, delete-orphan"),
     )
+
+
+class QuizQuestion(db.Model):
+    __tablename__ = "quiz_question"
+    id = db.Column(db.Integer, primary_key=True)
+    assignment_id = db.Column(
+        db.Integer, db.ForeignKey("assignment.id"), nullable=False
+    )
+    question_text = db.Column(db.Text, nullable=False)
+    question_type = db.Column(
+        db.String(20), default="single"
+    )  # single / multiple / open
+    order = db.Column(db.Integer, default=0)  # порядок отображения
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    options = db.relationship(
+        "QuizOption", backref="question", lazy="dynamic", cascade="all, delete-orphan"
+    )
+    assignment = db.relationship(
+        "Assignment",
+        backref=db.backref(
+            "quiz_questions", lazy="dynamic", cascade="all, delete-orphan"
+        ),
+    )
+
+
+class QuizOption(db.Model):
+    __tablename__ = "quiz_option"
+    id = db.Column(db.Integer, primary_key=True)
+    question_id = db.Column(
+        db.Integer, db.ForeignKey("quiz_question.id"), nullable=False
+    )
+    option_text = db.Column(db.String(500), nullable=False)
+    is_correct = db.Column(db.Boolean, default=False)  # для single/multiple
+
+
+class QuizAnswer(db.Model):
+    __tablename__ = "quiz_answer"
+    id = db.Column(db.Integer, primary_key=True)
+    submission_id = db.Column(
+        db.Integer, db.ForeignKey("submission.id"), nullable=False
+    )
+    question_id = db.Column(
+        db.Integer, db.ForeignKey("quiz_question.id"), nullable=False
+    )
+    selected_options = db.Column(
+        db.String(500), nullable=True
+    )  # ID выбранных вариантов через запятую
+    open_answer = db.Column(db.Text, nullable=True)  # для open-вопросов
+    score = db.Column(
+        db.Float, nullable=True
+    )  # балл за вопрос (выставляется скриптом или вручную)
+
+    submission = db.relationship(
+        "Submission",
+        backref=db.backref(
+            "quiz_answers", lazy="dynamic", cascade="all, delete-orphan"
+        ),
+    )
+    question = db.relationship("QuizQuestion")

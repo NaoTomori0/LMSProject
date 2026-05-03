@@ -8,8 +8,65 @@
             <pre class="card-text" style="white-space: pre-wrap;">{{ assignment.description or 'Без описания' }}</pre>
         </div>
     </div>
+    {% if assignment.deadline %}
+    <div class="alert alert-warning">
+        ⏰ Дедлайн: {{ assignment.deadline.strftime('%d.%m.%Y %H:%M') }}
+    </div>
+    {% endif %}
+  {% if assignment.max_attempts > 0 %}
+    <div class="alert alert-info">
+        🔄 Максимум попыток: {{ assignment.max_attempts }}
+    </div>
+    {% endif %}
     <form method="POST" enctype="multipart/form-data" id="submit-form">
-        <!-- Выбор языка подсветки и компиляции -->
+        {% if assignment.check_type == 'quiz' %}
+        <!-- ======== ТЕСТОВАЯ ФОРМА ======== -->
+        {% for question in assignment.quiz_questions|sort(attribute='order') %}
+        <div class="card mb-3">
+            <div class="card-body">
+                <p>
+                    <strong>{{ loop.index }}. {{ question.question_text }}</strong>
+                </p>
+                {% if question.question_type == 'single' %}
+              {% for option in question.options %}
+                <div class="form-check">
+                    <input
+                        class="form-check-input"
+                        type="radio"
+                        name="q_{{ question.id }}"
+                        value="{{ option.id }}"
+                        id="opt_{{ option.id }}"
+                    >
+                    <label class="form-check-label" for="opt_{{ option.id }}">{{ option.option_text }}</label>
+                </div>
+                {% endfor %}
+            {% elif question.question_type == 'multiple' %}
+              {% for option in question.options %}
+                <div class="form-check">
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        name="q_{{ question.id }}"
+                        value="{{ option.id }}"
+                        id="opt_{{ option.id }}"
+                    >
+                    <label class="form-check-label" for="opt_{{ option.id }}">{{ option.option_text }}</label>
+                </div>
+                {% endfor %}
+            {% else %}
+                <textarea
+                    class="form-control"
+                    name="q_{{ question.id }}"
+                    rows="3"
+                    placeholder="Введите развёрнутый ответ"
+                ></textarea>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+
+    {% else %}
+        <!-- ======== РЕДАКТОР КОДА ======== -->
         <div class="row mb-3">
             <div class="col-md-4">
                 <label for="language-select" class="form-label">Язык программирования</label>
@@ -21,19 +78,16 @@
                 </select>
             </div>
         </div>
-        <!-- Редактор кода -->
         <div class="mb-3">
             <label for="editor" class="form-label">Ваше решение</label>
             <textarea id="editor" name="answer" style="height: 400px;"></textarea>
         </div>
-        <!-- Скрытое поле для передачи выбранного языка -->
         <input
             type="hidden"
             id="selected-language"
             name="language"
             value="python"
         >
-        <!-- Загрузка файлов -->
         <div class="mb-3">
             <label for="files" class="form-label">Прикрепить файлы (если нужно)</label>
             <input
@@ -45,7 +99,9 @@
             >
             <div class="form-text">Допустимые типы: .py, .js, .cpp, .c, .java, .txt, .zip</div>
         </div>
-        {% if not current_user.is_authenticated %}
+        {% endif %}
+
+    {% if not current_user.is_authenticated %}
         <h5 class="mb-3">Ваши данные</h5>
         <div class="mb-3">
             <label for="guest_name" class="form-label">Имя</label>
@@ -75,9 +131,9 @@
 {% endblock %}
 
 {% block scripts %}
+{% if assignment.check_type != 'quiz' %}
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    // CodeMirror инициализация
     var editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
       lineNumbers: true,
       mode: 'python',
@@ -87,26 +143,19 @@
       autoCloseBrackets: true,
       styleActiveLine: true
     });
-
-    // Элементы управления языком
     var langSelect = document.getElementById('language-select');
     var hiddenLang = document.getElementById('selected-language');
-
-    // Смена языка редактора и скрытого поля
     langSelect.addEventListener('change', function() {
       var val = this.value;
       hiddenLang.value = val;
-
-      // Установка режима CodeMirror
       var mode = 'python';
       if (val === 'javascript') mode = 'javascript';
       else if (val === 'cpp') mode = 'text/x-c++src';
       else if (val === 'java') mode = 'text/x-java';
       editor.setOption('mode', mode);
     });
-
-    // При загрузке страницы синхронизируем скрытое поле
     hiddenLang.value = langSelect.value;
   });
 </script>
+{% endif %}
 {% endblock %}

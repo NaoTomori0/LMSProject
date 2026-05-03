@@ -1,117 +1,214 @@
-{% extends "base.html" %}
-{% block body %}
-<div class="container" style="max-width: 600px;">
-    <h1>Новое задание</h1>
-    <form method="POST">
-        <div class="mb-3">
-            <label for="title" class="form-label">Название</label>
-            <input
-                type="text"
-                class="form-control"
-                id="title"
-                name="title"
-                required
-            >
-        </div>
-        <div class="mb-3">
-            <label for="description" class="form-label">Описание</label>
-            <textarea
-                class="form-control"
-                id="description"
-                name="description"
-                rows="4"
-            ></textarea>
-        </div>
-        <div class="mb-3">
-            <label for="check_type" class="form-label">Тип проверки</label>
-            <select class="form-select" id="check_type" name="check_type">
-                <option value="manual">Ручная</option>
-                <option value="auto">Автоматическая (скрипт)</option>
-                <option value="quiz">Тест</option>
-            </select>
-        </div>
-        <!-- Блок выбора скрипта (только для auto) -->
-        <div id="auto-script" style="display:none;">
-            <div class="mb-3">
-                <label for="script_id" class="form-label">Скрипт проверки (универсальный)</label>
-                <select class="form-select" id="script_id" name="script_id">
-                    <option value="">-- Не выбран --</option>
-                    {% for s in scripts %}
-                    <option value="{{ s.id }}">{{ s.name }} ({{ s.language }})</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
-        <!-- Видимость задания -->
-        <div class="mb-3">
-            <label class="form-label">Видимость</label>
-            <div class="form-check">
-                <input
-                    class="form-check-input"
-                    type="radio"
-                    name="visibility"
-                    value="public"
-                    id="vis-public"
-                    checked
-                >
-                <label class="form-check-label" for="vis-public">Публичное (видят все, включая гостей)</label>
-            </div>
-            <div class="form-check">
-                <input
-                    class="form-check-input"
-                    type="radio"
-                    name="visibility"
-                    value="authenticated"
-                    id="vis-auth"
-                >
-                <label class="form-check-label" for="vis-auth">Только для авторизованных пользователей</label>
-            </div>
-            <div class="form-check">
-                <input
-                    class="form-check-input"
-                    type="radio"
-                    name="visibility"
-                    value="group"
-                    id="vis-group"
-                >
-                <label class="form-check-label" for="vis-group">Только для группы</label>
-            </div>
-        </div>
-        <!-- Выбор группы (показывается при выборе "Только для группы") -->
-        <div id="group-select" class="mb-3" style="display:none;">
-            <label for="group_id" class="form-label">Группа</label>
-            <select class="form-select" id="group_id" name="group_id">
-                <option value="">-- Выберите группу --</option>
-                {% for group in groups %}
-                <option value="{{ group.id }}">{{ group.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <button type="submit" class="btn btn-primary">Создать</button>
-        <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">Отмена</a>
-    </form>
+{% extends "base.html" %} {% block body %}
+<div class="container" style="max-width: 600px">
+  <h1>Новое задание</h1>
+  <form method="POST" id="assignment-form">
+    <div class="mb-3">
+      <label for="title" class="form-label">Название</label>
+      <input
+        type="text"
+        class="form-control"
+        id="title"
+        name="title"
+        required
+      />
+    </div>
+    <div class="mb-3">
+      <label for="description" class="form-label">Описание</label>
+      <textarea
+        class="form-control"
+        id="description"
+        name="description"
+        rows="4"
+      ></textarea>
+    </div>
+    <div class="mb-3">
+      <label for="check_type" class="form-label">Тип проверки</label>
+      <select class="form-select" id="check_type" name="check_type">
+        <option value="manual">Ручная</option>
+        <option value="auto">Автоматическая (скрипт)</option>
+        <option value="quiz">Тест</option>
+      </select>
+    </div>
+    <!-- Блок выбора скрипта (только для auto) -->
+    <div id="auto-script" style="display: none">
+      <div class="mb-3">
+        <label for="script_id" class="form-label"
+          >Скрипт проверки (универсальный)</label
+        >
+        <select class="form-select" id="script_id" name="script_id">
+          <option value="">-- Не выбран --</option>
+          {% for s in scripts %}
+          <option value="{{ s.id }}">{{ s.name }} ({{ s.language }})</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <!-- Видимость задания -->
+    <div class="mb-3">
+      <label class="form-label">Видимость</label>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="visibility"
+          value="public"
+          id="vis-public"
+          checked
+        />
+        <label class="form-check-label" for="vis-public"
+          >Публичное (видят все, включая гостей)</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="visibility"
+          value="authenticated"
+          id="vis-auth"
+        />
+        <label class="form-check-label" for="vis-auth"
+          >Только для авторизованных пользователей</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="visibility"
+          value="group"
+          id="vis-group"
+        />
+        <label class="form-check-label" for="vis-group"
+          >Только для группы</label
+        >
+      </div>
+    </div>
+    <!-- Выбор группы -->
+    <div id="group-select" class="mb-3" style="display: none">
+      <label for="group_id" class="form-label">Группа</label>
+      <select class="form-select" id="group_id" name="group_id">
+        <option value="">-- Выберите группу --</option>
+        {% for group in groups %}
+        <option value="{{ group.id }}">{{ group.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <!-- Дедлайн и попытки -->
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <label for="deadline" class="form-label">Дедлайн</label>
+        <input
+          type="datetime-local"
+          class="form-control"
+          id="deadline"
+          name="deadline"
+        />
+        <div class="form-text">Оставьте пустым, если без ограничения.</div>
+      </div>
+      <div class="col-md-6">
+        <label for="max_attempts" class="form-label">Максимум попыток</label>
+        <input
+          type="number"
+          class="form-control"
+          id="max_attempts"
+          name="max_attempts"
+          min="0"
+          value="0"
+        />
+        <div class="form-text">0 — без ограничений.</div>
+      </div>
+    </div>
+    <!-- Блок тестовых вопросов -->
+    <div id="quiz-section" style="display: none">
+      <h5 class="mt-4">Вопросы теста</h5>
+      <div id="questions-container"></div>
+      <button
+        type="button"
+        class="btn btn-outline-primary btn-sm mt-2"
+        onclick="addQuestion()"
+      >
+        + Добавить вопрос
+      </button>
+    </div>
+    <button type="submit" class="btn btn-primary mt-4">Создать</button>
+    <a href="{{ url_for('admin.index') }}" class="btn btn-secondary mt-4"
+      >Отмена</a
+    >
+  </form>
 </div>
+{% endblock %} {% block scripts %} {{ super() }}
 <script>
-  // Переключение блока скрипта
-  const checkType = document.getElementById('check_type');
-  const autoDiv = document.getElementById('auto-script');
-  function toggleAuto() {
-    autoDiv.style.display = checkType.value === 'auto' ? 'block' : 'none';
-  }
-  checkType.addEventListener('change', toggleAuto);
-  window.addEventListener('DOMContentLoaded', toggleAuto);
+  // Переключение видимых блоков при выборе типа проверки
+  const checkType = document.getElementById("check_type");
+  const autoDiv = document.getElementById("auto-script");
+  const quizSection = document.getElementById("quiz-section");
 
-  // Переключение видимости: показываем выбор группы только при "group"
-  const radioPublic = document.getElementById('vis-public');
-  const radioAuth = document.getElementById('vis-auth');
-  const radioGroup = document.getElementById('vis-group');
-  const groupDiv = document.getElementById('group-select');
-  function toggleGroupSelect() {
-    groupDiv.style.display = radioGroup.checked ? 'block' : 'none';
+  function toggleTypeBlocks() {
+    autoDiv.style.display = checkType.value === "auto" ? "block" : "none";
+    quizSection.style.display = checkType.value === "quiz" ? "block" : "none";
   }
-  radioPublic.addEventListener('change', toggleGroupSelect);
-  radioAuth.addEventListener('change', toggleGroupSelect);
-  radioGroup.addEventListener('change', toggleGroupSelect);
-  window.addEventListener('DOMContentLoaded', toggleGroupSelect);
+  checkType.addEventListener("change", toggleTypeBlocks);
+  window.addEventListener("DOMContentLoaded", toggleTypeBlocks);
+
+  // Переключение видимости выбора группы
+  const radioPublic = document.getElementById("vis-public");
+  const radioAuth = document.getElementById("vis-auth");
+  const radioGroup = document.getElementById("vis-group");
+  const groupDiv = document.getElementById("group-select");
+
+  function toggleGroupSelect() {
+    groupDiv.style.display = radioGroup.checked ? "block" : "none";
+  }
+  radioPublic.addEventListener("change", toggleGroupSelect);
+  radioAuth.addEventListener("change", toggleGroupSelect);
+  radioGroup.addEventListener("change", toggleGroupSelect);
+  window.addEventListener("DOMContentLoaded", toggleGroupSelect);
+
+  // Конструктор вопросов
+  let questionIndex = 0;
+  function addQuestion() {
+    const container = document.getElementById("questions-container");
+    const idx = questionIndex++;
+    const div = document.createElement("div");
+    div.className = "card mb-3";
+    div.innerHTML = `
+      <div class="card-body">
+        <div class="mb-2">
+          <label>Текст вопроса</label>
+          <input type="text" class="form-control" name="question_text" required>
+        </div>
+        <div class="mb-2">
+          <label>Тип</label>
+          <select class="form-select" name="question_type">
+            <option value="single">Один вариант</option>
+            <option value="multiple">Несколько вариантов</option>
+            <option value="open">Развёрнутый ответ</option>
+          </select>
+        </div>
+        <div class="options-container-${idx} mb-2"></div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addOption(this, ${idx})">+ Вариант</button>
+        <button type="button" class="btn btn-sm btn-danger float-end" onclick="this.closest('.card').remove()">Удалить вопрос</button>
+      </div>
+    `;
+    container.appendChild(div);
+  }
+
+  function addOption(btn, qIdx) {
+    const container = btn
+      .closest(".card")
+      .querySelector(`.options-container-${qIdx}`);
+    const optIdx = container.children.length;
+    const div = document.createElement("div");
+    div.className = "input-group mb-1";
+    div.innerHTML = `
+      <input type="text" class="form-control" name="option_text_${qIdx}[]" placeholder="Текст варианта">
+      <div class="input-group-text">
+        <input type="checkbox" name="option_correct_${qIdx}[]" value="${optIdx}">
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.input-group').remove()">×</button>
+    `;
+    container.appendChild(div);
+  }
 </script>
 {% endblock %}
