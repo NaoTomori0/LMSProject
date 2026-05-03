@@ -47,24 +47,24 @@ def allowed_file(filename):
 
 
 def grade_quiz(submission):
-    """Автоматически оценивает закрытые вопросы теста."""
     total = 0
     for answer in submission.quiz_answers:
         question = answer.question
         if question.question_type == "open":
+            answer.score = None  # будет проверено вручную
             continue
         correct_ids = [str(o.id) for o in question.options if o.is_correct]
         selected_ids = (answer.selected_options or "").split(",")
         if question.question_type == "single":
             if selected_ids == correct_ids:
-                answer.score = 1
-                total += 1
+                answer.score = question.max_score
+                total += question.max_score
             else:
                 answer.score = 0
         elif question.question_type == "multiple":
             if set(selected_ids) == set(correct_ids):
-                answer.score = 1
-                total += 1
+                answer.score = question.max_score
+                total += question.max_score
             else:
                 answer.score = 0
     submission.score = total

@@ -203,6 +203,7 @@ def new_assignment():
         # Сохранение вопросов для quiz
         if check_type == "quiz":
             question_texts = request.form.getlist("question_text")
+            question_scores = request.form.getlist("question_score")
             question_types = request.form.getlist("question_type")
             for idx, q_text in enumerate(question_texts):
                 if not q_text.strip():
@@ -213,6 +214,11 @@ def new_assignment():
                     question_text=q_text.strip(),
                     question_type=q_type,
                     order=idx,
+                    max_score=(
+                        float(question_scores[idx])
+                        if idx < len(question_scores)
+                        else 1.0
+                    ),
                 )
                 db.session.add(question)
                 db.session.flush()
@@ -324,6 +330,7 @@ def edit_assignment(id):
 
         if assignment.check_type == "quiz":
             question_texts = request.form.getlist("question_text")
+            question_scores = request.form.getlist("question_score")
             question_types = request.form.getlist("question_type")
             for idx, q_text in enumerate(question_texts):
                 if not q_text.strip():
@@ -334,6 +341,11 @@ def edit_assignment(id):
                     question_text=q_text.strip(),
                     question_type=q_type,
                     order=idx,
+                    max_score=(
+                        float(question_scores[idx])
+                        if idx < len(question_scores)
+                        else 1.0
+                    ),
                 )
                 db.session.add(question)
                 db.session.flush()
