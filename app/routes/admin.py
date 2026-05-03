@@ -275,7 +275,9 @@ def edit_assignment(id):
 
         # Дедлайн и попытки
         deadline_str = request.form.get("deadline", "").strip()
-        deadline = datetime.strptime(deadline_str, "%Y-%m-%d") if deadline_str else None
+        assignment.deadline = (
+            datetime.strptime(deadline_str, "%Y-%m-%d") if deadline_str else None
+        )
         assignment.max_attempts = request.form.get("max_attempts", 0, type=int)
 
         # Видимость
