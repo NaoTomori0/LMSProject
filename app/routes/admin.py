@@ -330,26 +330,34 @@ def edit_assignment(id):
 
         if assignment.check_type == "quiz":
             question_texts = request.form.getlist("question_text")
-            question_scores = request.form.getlist("question_score")
             question_types = request.form.getlist("question_type")
+            question_scores = request.form.getlist("question_score")  # баллы за вопрос
+
             for idx, q_text in enumerate(question_texts):
                 if not q_text.strip():
                     continue
                 q_type = question_types[idx] if idx < len(question_types) else "single"
+                # Баллы по умолчанию 1.0, если не указаны
+                try:
+                    max_score = (
+                        float(question_scores[idx])
+                        if idx < len(question_scores)
+                        else 1.0
+                    )
+                except (ValueError, IndexError):
+                    max_score = 1.0
+
                 question = QuizQuestion(
                     assignment_id=assignment.id,
                     question_text=q_text.strip(),
                     question_type=q_type,
                     order=idx,
-                    max_score=(
-                        float(question_scores[idx])
-                        if idx < len(question_scores)
-                        else 1.0
-                    ),
+                    max_score=max_score,
                 )
                 db.session.add(question)
                 db.session.flush()
 
+                # Варианты ответов
                 opt_texts = request.form.getlist(f"option_text_{idx}[]")
                 if q_type == "single":
                     correct_value = request.form.get(f"option_correct_{idx}")
