@@ -65,8 +65,6 @@
         </option>
       </select>
     </div>
-
-    <!-- Блок выбора скрипта (управление через JS) -->
     <div id="auto-script" style="display: none">
       <div class="mb-3">
         <label for="script_id" class="form-label"
@@ -93,8 +91,6 @@
         </select>
       </div>
     </div>
-
-    <!-- Видимость задания -->
     <div class="mb-3">
       <label class="form-label">Видимость</label>
       <div class="form-check">
@@ -155,8 +151,6 @@
         >
       </div>
     </div>
-
-    <!-- Выбор группы (управление через JS) -->
     <div id="group-select" class="mb-3" style="display: none">
       <label for="group_id" class="form-label">Группа</label>
       <select class="form-select" id="group_id" name="group_id">
@@ -177,8 +171,6 @@
         {% endfor %}
       </select>
     </div>
-
-    <!-- Дедлайн и попытки -->
     <div class="row mb-3">
       <div class="col-md-6">
         <label for="deadline" class="form-label">Дедлайн</label>
@@ -204,8 +196,6 @@
         <div class="form-text">0 — без ограничений.</div>
       </div>
     </div>
-
-    <!-- Блок для тестовых вопросов (показывается при выборе quiz) -->
     <div id="quiz-section" style="display: none">
       <h5 class="mt-4">Вопросы теста</h5>
       <div id="questions-container">
@@ -263,7 +253,7 @@
                 </option>
               </select>
             </div>
-            <div class="options-container mb-2">
+            <div class="options-container-{{ loop.index0 }} mb-2">
               {% for option in question.options %}
               <div class="input-group mb-1">
                 <input
@@ -275,8 +265,8 @@
                 />
                 <div class="input-group-text">
                   <input
-                    type="checkbox"
-                    name="option_correct_{{ loop.index0 }}[]"
+                    type="{{ 'radio' if question.question_type == 'single' else 'checkbox' }}"
+                    name="option_correct_{{ loop.index0 }}{% if question.question_type != 'single' %}[]{% endif %}"
                     value="{{ loop.index0 }}"
                     {%
                     if
@@ -299,7 +289,7 @@
             <button
               type="button"
               class="btn btn-sm btn-outline-secondary"
-              onclick="addOption(this, {{ loop.index0 }})"
+              onclick="addOption(this, '{{ loop.index0 }}')"
             >
               + Вариант
             </button>
@@ -322,7 +312,6 @@
         + Добавить вопрос
       </button>
     </div>
-
     <button type="submit" class="btn btn-primary mt-4">
       Сохранить изменения
     </button>
@@ -333,7 +322,6 @@
 </div>
 {% endblock %} {% block scripts %} {{ super() }}
 <script>
-  // Переключение блоков при изменении типа проверки
   const checkType = document.getElementById("check_type");
   const autoDiv = document.getElementById("auto-script");
   const quizSection = document.getElementById("quiz-section");
@@ -345,11 +333,11 @@
   checkType.addEventListener("change", toggleSections);
   window.addEventListener("DOMContentLoaded", toggleSections);
 
-  // Переключение видимости группы
   const radioPublic = document.getElementById("vis-public");
   const radioAuth = document.getElementById("vis-auth");
   const radioGroup = document.getElementById("vis-group");
   const groupDiv = document.getElementById("group-select");
+
   function toggleGroupSelect() {
     groupDiv.style.display = radioGroup.checked ? "block" : "none";
   }
@@ -358,51 +346,100 @@
   radioGroup.addEventListener("change", toggleGroupSelect);
   window.addEventListener("DOMContentLoaded", toggleGroupSelect);
 
-  // Конструктор вопросов
   let questionIndex = document.querySelectorAll(
     "#questions-container .card",
   ).length;
+
+  function updateOptionsForQuestion(card) {
+    const typeSelect = card.querySelector('select[name="question_type"]');
+    if (!typeSelect) return;
+    const currentType = typeSelect.value;
+    const container = card.querySelector('[class*="options-container-"]');
+    if (!container) return;
+    const qIdxMatch = container.className.match(/options-container-(\d+)/);
+    if (!qIdxMatch) return;
+    const qIdx = qIdxMatch[1];
+    const optionGroups = container.querySelectorAll(".input-group");
+    optionGroups.forEach((group, optIdx) => {
+      const input = group.querySelector(
+        "input[type=radio], input[type=checkbox]",
+      );
+      if (!input) return;
+      const newType = currentType === "single" ? "radio" : "checkbox";
+      const newName =
+        "option_correct_" + qIdx + (newType === "checkbox" ? "[]" : "");
+      input.type = newType;
+      input.name = newName;
+      if (newType === "radio") {
+        input.checked = false;
+      }
+    });
+  }
+
+  // Применяем актуальные типы к существующим вопросам и вешаем обработчики
+  document.querySelectorAll("#questions-container .card").forEach((card) => {
+    updateOptionsForQuestion(card);
+    const typeSelect = card.querySelector('select[name="question_type"]');
+    if (typeSelect) {
+      typeSelect.addEventListener("change", () =>
+        updateOptionsForQuestion(card),
+      );
+    }
+  });
+
   function addQuestion() {
     const container = document.getElementById("questions-container");
     const idx = questionIndex++;
     const div = document.createElement("div");
     div.className = "card mb-3";
     div.innerHTML = `
-            <div class="card-body">
-                <div class="mb-2">
-                    <label>Текст вопроса</label>
-                    <input type="text" class="form-control" name="question_text" required>
-                </div>
-                <div class="mb-2">
-                    <label>Тип</label>
-                    <select class="form-select" name="question_type">
-                        <option value="single">Один вариант</option>
-                        <option value="multiple">Несколько вариантов</option>
-                        <option value="open">Развёрнутый ответ</option>
-                    </select>
-                </div>
-                <div class="options-container-${idx} mb-2"></div>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addOption(this, ${idx})">+ Вариант</button>
-                <button type="button" class="btn btn-sm btn-danger float-end" onclick="this.closest('.card').remove()">Удалить вопрос</button>
-            </div>
-        `;
+      <div class="card-body">
+        <div class="mb-2">
+          <label>Текст вопроса</label>
+          <input type="text" class="form-control" name="question_text" required>
+        </div>
+        <div class="mb-2">
+          <label>Тип</label>
+          <select class="form-select" name="question_type">
+            <option value="single">Один вариант</option>
+            <option value="multiple">Несколько вариантов</option>
+            <option value="open">Развёрнутый ответ</option>
+          </select>
+        </div>
+        <div class="options-container-${idx} mb-2"></div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addOption(this, ${idx})">+ Вариант</button>
+        <button type="button" class="btn btn-sm btn-danger float-end" onclick="this.closest('.card').remove()">Удалить вопрос</button>
+      </div>
+    `;
+    const typeSelect = div.querySelector('select[name="question_type"]');
+    if (typeSelect) {
+      typeSelect.addEventListener("change", () =>
+        updateOptionsForQuestion(div),
+      );
+    }
     container.appendChild(div);
   }
 
   function addOption(btn, qIdx) {
-    const container = btn
-      .closest(".card")
-      .querySelector(`.options-container-${qIdx}`);
+    const card = btn.closest(".card");
+    const typeSelect = card.querySelector('select[name="question_type"]');
+    const currentType = typeSelect ? typeSelect.value : "single";
+    const container = card.querySelector(`.options-container-${qIdx}`);
     const optIdx = container.children.length;
+
     const div = document.createElement("div");
     div.className = "input-group mb-1";
+    const inputType = currentType === "single" ? "radio" : "checkbox";
+    const inputName =
+      "option_correct_" + qIdx + (inputType === "checkbox" ? "[]" : "");
+
     div.innerHTML = `
-            <input type="text" class="form-control" name="option_text_${qIdx}[]" placeholder="Текст варианта">
-            <div class="input-group-text">
-                <input type="checkbox" name="option_correct_${qIdx}[]" value="${optIdx}">
-            </div>
-            <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.input-group').remove()">×</button>
-        `;
+      <input type="text" class="form-control" name="option_text_${qIdx}[]" placeholder="Текст варианта">
+      <div class="input-group-text">
+        <input type="${inputType}" name="${inputName}" value="${optIdx}">
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.input-group').remove()">×</button>
+    `;
     container.appendChild(div);
   }
 </script>

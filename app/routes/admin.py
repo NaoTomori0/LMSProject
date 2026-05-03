@@ -206,9 +206,8 @@ def new_assignment():
 
         # Сохранение вопросов для quiz
         if check_type == "quiz":
-            question_texts = request.form.getlist("question_text")  # список текстов
-            question_types = request.form.getlist("question_type")  # типы
-            # Обработка каждой группы вариантов: option_text_{i}[] и option_correct_{i}[]
+            question_texts = request.form.getlist("question_text")
+            question_types = request.form.getlist("question_type")
             for idx, q_text in enumerate(question_texts):
                 if not q_text.strip():
                     continue
@@ -223,13 +222,19 @@ def new_assignment():
                 db.session.flush()
 
                 opt_texts = request.form.getlist(f"option_text_{idx}[]")
-                opt_corrects = request.form.getlist(
-                    f"option_correct_{idx}[]"
-                )  # значения – индексы
+                # Для single приходит одно значение (если radio), для multiple – список
+                if q_type == "single":
+                    correct_value = request.form.get(f"option_correct_{idx}")
+                    correct_indices = (
+                        [correct_value] if correct_value is not None else []
+                    )
+                else:
+                    correct_indices = request.form.getlist(f"option_correct_{idx}[]")
+
                 for opt_idx, opt_text in enumerate(opt_texts):
                     if not opt_text.strip():
                         continue
-                    is_correct = str(opt_idx) in opt_corrects
+                    is_correct = str(opt_idx) in correct_indices
                     db.session.add(
                         QuizOption(
                             question_id=question.id,
@@ -246,33 +251,29 @@ def new_assignment():
     return render_template("admin/new_assignment.html", scripts=scripts, groups=groups)
 
 
-@bp.route("/assignment/<int:id>/edit", methods=["GET", "POST"])
+@bp.route("/assignment/new", methods=["GET", "POST"])
 @login_required
 @admin_required
-def edit_assignment(id):
-    assignment = Assignment.query.get_or_404(id)
+def new_assignment():
     scripts = TestScript.query.all()
     groups = Group.query.all()
-
-    # Определение текущего visibility для формы
-    if assignment.is_public:
-        current_visibility = "public"
-    elif assignment.group_id:
-        current_visibility = "group"
-    else:
-        current_visibility = "authenticated"
-
     if request.method == "POST":
-        assignment.title = request.form.get("title")
-        assignment.description = request.form.get("description")
-        assignment.check_type = request.form.get("check_type", "manual")
+        title = request.form.get("title")
+        description = request.form.get("description")
+        check_type = request.form.get("check_type", "manual")
 
+        # Дедлайн и попытки
         deadline_str = request.form.get("deadline", "").strip()
-        assignment.deadline = (
+        deadline = (
             datetime.strptime(deadline_str, "%Y-%m-%dT%H:%M") if deadline_str else None
         )
-        assignment.max_attempts = request.form.get("max_attempts", 0, type=int)
+        max_attempts = request.form.get("max_attempts", 0, type=int)
 
+        script_id = (
+            request.form.get("script_id", type=int) if check_type == "auto" else None
+        )
+
+        # Видимость
         visibility = request.form.get("visibility", "public")
         group_id = None
         is_public = False
@@ -286,40 +287,37 @@ def edit_assignment(id):
             if not group_id:
                 flash("Выберите группу для группового задания", "danger")
                 return render_template(
-                    "admin/edit_assignment.html",
-                    assignment=assignment,
-                    scripts=scripts,
-                    groups=groups,
-                    current_visibility=current_visibility,
+                    "admin/new_assignment.html", scripts=scripts, groups=groups
                 )
-        assignment.is_public = is_public
-        assignment.group_id = group_id
 
-        # Удаляем старые привязки скриптов и вопросы
-        AssignmentScript.query.filter_by(assignment_id=assignment.id).delete()
-        QuizOption.query.filter(
-            QuizOption.question.has(assignment_id=assignment.id)
-        ).delete()
-        QuizAnswer.query.filter(
-            QuizAnswer.question.has(assignment_id=assignment.id)
-        ).delete()
-        QuizQuestion.query.filter_by(assignment_id=assignment.id).delete()
+        assignment = Assignment(
+            title=title,
+            description=description,
+            check_type=check_type,
+            is_public=is_public,
+            group_id=group_id,
+            deadline=deadline,
+            max_attempts=max_attempts,
+        )
+        db.session.add(assignment)
+        db.session.flush()
 
-        if assignment.check_type == "auto":
-            script_id = request.form.get("script_id", type=int)
-            if script_id:
-                script = TestScript.query.get(script_id)
-                if script:
-                    for lang in ["python", "cpp", "javascript", "java"]:
-                        db.session.add(
-                            AssignmentScript(
-                                assignment_id=assignment.id,
-                                test_script_id=script.id,
-                                language=lang,
-                            )
+        # Привязка скриптов для auto
+        if check_type == "auto" and script_id:
+            script = TestScript.query.get(script_id)
+            if script:
+                languages = ["python", "cpp", "javascript", "java"]
+                for lang in languages:
+                    db.session.add(
+                        AssignmentScript(
+                            assignment_id=assignment.id,
+                            test_script_id=script.id,
+                            language=lang,
                         )
+                    )
 
-        if assignment.check_type == "quiz":
+        # Сохранение вопросов для quiz
+        if check_type == "quiz":
             question_texts = request.form.getlist("question_text")
             question_types = request.form.getlist("question_type")
             for idx, q_text in enumerate(question_texts):
@@ -334,12 +332,21 @@ def edit_assignment(id):
                 )
                 db.session.add(question)
                 db.session.flush()
+
                 opt_texts = request.form.getlist(f"option_text_{idx}[]")
-                opt_corrects = request.form.getlist(f"option_correct_{idx}[]")
+                # Для single приходит одно значение (если radio), для multiple – список
+                if q_type == "single":
+                    correct_value = request.form.get(f"option_correct_{idx}")
+                    correct_indices = (
+                        [correct_value] if correct_value is not None else []
+                    )
+                else:
+                    correct_indices = request.form.getlist(f"option_correct_{idx}[]")
+
                 for opt_idx, opt_text in enumerate(opt_texts):
                     if not opt_text.strip():
                         continue
-                    is_correct = str(opt_idx) in opt_corrects
+                    is_correct = str(opt_idx) in correct_indices
                     db.session.add(
                         QuizOption(
                             question_id=question.id,
@@ -350,33 +357,10 @@ def edit_assignment(id):
 
         db.session.commit()
         cache.clear()
-
-        # Аннулирование решений для потерявших доступ
-        if assignment.group_id:
-            group = Group.query.get(assignment.group_id)
-            subs = Submission.query.filter_by(assignment_id=assignment.id).all()
-            for sub in subs:
-                if sub.user and sub.user not in group.members:
-                    sub.status = "failed"
-                    sub.score = 0
-                    sub.feedback = "Задание стало доступно только участникам группы. Ваше решение аннулировано."
-            db.session.commit()
-
-        if assignment.check_type == "auto":
-            recheck_all_task.delay(assignment.id, current_app.config["UPLOAD_FOLDER"])
-            flash("Задание обновлено. Запущена полная перепроверка.", "success")
-        else:
-            flash("Задание обновлено.", "success")
-
+        flash("Задание создано", "success")
         return redirect(url_for("admin.index"))
 
-    return render_template(
-        "admin/edit_assignment.html",
-        assignment=assignment,
-        scripts=scripts,
-        groups=groups,
-        current_visibility=current_visibility,
-    )
+    return render_template("admin/new_assignment.html", scripts=scripts, groups=groups)
 
 
 @bp.route("/assignment/<int:id>/delete", methods=["POST"])
