@@ -153,16 +153,15 @@
     const localDate = new Date(input.value);
     if (isNaN(localDate)) return;
     const offsetMinutes = getUTCOffsetMinutes();
-    // Прибавляем смещение, чтобы получить UTC
-    const utcDate = new Date(localDate.getTime() + offsetMinutes * 60000);
-    // Форматируем в YYYY-MM-DDTHH:MM
+    // Правильно: UTC = local - offset (а не local + offset)
+    const utcDate = new Date(localDate.getTime() - offsetMinutes * 60000);
     const yyyy = utcDate.getUTCFullYear();
     const mm = String(utcDate.getUTCMonth() + 1).padStart(2, "0");
     const dd = String(utcDate.getUTCDate()).padStart(2, "0");
     const hh = String(utcDate.getUTCHours()).padStart(2, "0");
     const min = String(utcDate.getUTCMinutes()).padStart(2, "0");
     input.value = `${yyyy}-${mm}-${dd}T${hh}:${min}`;
-  }
+}
 
   const form = document.getElementById("assignment-form");
   form.addEventListener("submit", convertDeadlineToUTC);
