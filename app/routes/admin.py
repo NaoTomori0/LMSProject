@@ -304,15 +304,8 @@ def edit_assignment(id):
         assignment.is_public = is_public
         assignment.group_id = group_id
 
-        # Удаляемые старые привязки скриптов и вопросы
+        # Удаляем старые привязки скриптов (для auto)
         AssignmentScript.query.filter_by(assignment_id=assignment.id).delete()
-        QuizOption.query.filter(
-            QuizOption.question.has(assignment_id=assignment.id)
-        ).delete()
-        QuizAnswer.query.filter(
-            QuizAnswer.question.has(assignment_id=assignment.id)
-        ).delete()
-        QuizQuestion.query.filter_by(assignment_id=assignment.id).delete()
 
         # Скрипты для auto
         if assignment.check_type == "auto":
@@ -329,8 +322,15 @@ def edit_assignment(id):
                             )
                         )
 
-        # Обработка тестов
+        # ==================== Обработка тестов (обновление) ====================
         if assignment.check_type == "quiz":
+            # Загружаем существующие вопросы
+            existing_questions = {
+                q.id: q
+                for q in QuizQuestion.query.filter_by(assignment_id=assignment.id).all()
+            }
+            processed_ids = set()
+
             question_texts = request.form.getlist("question_text")
             question_types = request.form.getlist("question_type")
             question_scores = request.form.getlist("question_score")
@@ -338,6 +338,9 @@ def edit_assignment(id):
             for idx, q_text in enumerate(question_texts):
                 if not q_text.strip():
                     continue
+                # ID вопроса из скрытого поля (0 для новых)
+                q_id = request.form.get(f"question_id_{idx}", 0, type=int)
+
                 q_type = question_types[idx] if idx < len(question_types) else "single"
                 try:
                     max_score = (
@@ -348,15 +351,28 @@ def edit_assignment(id):
                 except (ValueError, IndexError):
                     max_score = 1.0
 
-                question = QuizQuestion(
-                    assignment_id=assignment.id,
-                    question_text=q_text.strip(),
-                    question_type=q_type,
-                    order=idx,
-                    max_score=max_score,
-                )
-                db.session.add(question)
-                db.session.flush()
+                if q_id > 0 and q_id in existing_questions:
+                    # Обновляем существующий вопрос
+                    question = existing_questions[q_id]
+                    question.question_text = q_text.strip()
+                    question.question_type = q_type
+                    question.max_score = max_score
+                    question.order = idx
+                    # Удаляем старые варианты (будут добавлены новые)
+                    QuizOption.query.filter_by(question_id=question.id).delete()
+                else:
+                    # Создаём новый вопрос
+                    question = QuizQuestion(
+                        assignment_id=assignment.id,
+                        question_text=q_text.strip(),
+                        question_type=q_type,
+                        order=idx,
+                        max_score=max_score,
+                    )
+                    db.session.add(question)
+                    db.session.flush()
+
+                processed_ids.add(question.id)
 
                 # Варианты ответов
                 opt_texts = request.form.getlist(f"option_text_{idx}[]")
@@ -380,6 +396,14 @@ def edit_assignment(id):
                         )
                     )
 
+            # Удаляем вопросы, которых больше нет в форме
+            for q_id, q in existing_questions.items():
+                if q_id not in processed_ids:
+                    # Каскадом удалятся связанные ответы и варианты
+                    db.session.delete(q)
+
+        # ==================== конец обработки тестов ====================
+
         db.session.commit()
         cache.clear()
 
@@ -394,10 +418,13 @@ def edit_assignment(id):
                     sub.feedback = "Задание стало доступно только участникам группы. Ваше решение аннулировано."
             db.session.commit()
 
+        # Запуск перепроверки
         if assignment.check_type == "auto":
             recheck_all_task.delay(assignment.id, current_app.config["UPLOAD_FOLDER"])
             flash("Задание обновлено. Запущена полная перепроверка.", "success")
         elif assignment.check_type == "quiz":
+            from app.tasks import recheck_all_quiz_task
+
             recheck_all_quiz_task.delay(assignment.id)
             flash("Задание обновлено. Запущена перепроверка всех ответов.", "success")
         else:
@@ -405,7 +432,12 @@ def edit_assignment(id):
 
         return redirect(url_for("admin.index"))
 
-    questions = assignment.quiz_questions.order_by(QuizQuestion.order).all()
+    # GET-запрос: загружаем вопросы с подгруженными вариантами
+    questions = (
+        QuizQuestion.query.filter_by(assignment_id=id)
+        .order_by(QuizQuestion.order)
+        .all()
+    )
 
     return render_template(
         "admin/edit_assignment.html",
