@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, abort
+from flask import Blueprint, render_template, abort, flash, request, redirect, url_for
 from flask_login import login_required, current_user
-from app.models import Submission
+from app.models import Submission, User
 from app import cache
+from .main import db
 
 bp = Blueprint("cabinet", __name__, url_prefix="/cabinet")
 
@@ -64,3 +65,26 @@ def view_submission(id):
     if submission.user_id != current_user.id:
         abort(403)
     return render_template("cabinet/submission_detail.html", submission=submission)
+
+
+@bp.route("/edit-profile", methods=["GET", "POST"])
+@login_required
+def edit_profile():
+    if request.method == "POST":
+        new_username = request.form.get("username", "").strip()
+        if not new_username:
+            flash("Имя пользователя не может быть пустым", "danger")
+            return render_template("cabinet/edit_profile.html")
+        # Проверяем, что ник не занят другим пользователем
+        existing = User.query.filter(
+            User.username == new_username, User.id != current_user.id
+        ).first()
+        if existing:
+            flash("Это имя уже занято", "danger")
+            return render_template("cabinet/edit_profile.html")
+        current_user.username = new_username
+        db.session.commit()
+        cache.clear()
+        flash("Никнейм обновлён", "success")
+        return redirect(url_for("cabinet.index"))
+    return render_template("cabinet/edit_profile.html")

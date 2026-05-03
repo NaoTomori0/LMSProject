@@ -1,5 +1,9 @@
 {% extends "base.html" %} {% block body %}
 <div class="container">
+    <div class="d-flex align-items-center gap-3 mb-4">
+        <h2 class="mb-0">{{ current_user.username }}</h2>
+        <a href="{{ url_for('cabinet.edit_profile') }}" class="btn btn-sm btn-outline-secondary">✏️ Редактировать</a>
+    </div>
     <h1>Личный кабинет</h1>
     <!-- Статистика -->
     <div class="row row-cols-1 row-cols-md-5 g-3 mb-4">
@@ -79,7 +83,8 @@
                     <td>{{ sub.feedback or '' }}</td>
                     <td>{{ sub.created_at | localtime(utc_offset) }}</td>
                     <td>
-                        <a href="{{ url_for('cabinet.view_submission', id=sub.id) }}" class="btn btn-sm btn-outline-primary">Подробнее
+                        <a href="{{ url_for('cabinet.view_submission', id=sub.id) }}" class="btn btn-sm btn-outline-primary">
+                            Подробнее
                         </a
             >
                     </td>
