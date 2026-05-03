@@ -1,94 +1,35 @@
-{% extends "base.html" %} {% block body %}
-<div class="container" style="max-width: 600px">
+{% extends "base.html" %}
+{% block body %}
+<div class="container" style="max-width: 600px;">
   <h1>Редактирование задания «{{ assignment.title }}»</h1>
   <form method="POST" id="assignment-form">
     <div class="mb-3">
       <label for="title" class="form-label">Название</label>
-      <input
-        type="text"
-        class="form-control"
-        id="title"
-        name="title"
-        value="{{ assignment.title }}"
-        required
-      />
+      <input type="text" class="form-control" id="title" name="title" value="{{ assignment.title }}" required>
     </div>
     <div class="mb-3">
       <label for="description" class="form-label">Описание</label>
-      <textarea
-        class="form-control"
-        id="description"
-        name="description"
-        rows="4"
-      >
-{{ assignment.description or '' }}</textarea
-      >
+      <textarea class="form-control" id="description" name="description" rows="4">{{ assignment.description or '' }}</textarea>
     </div>
     <div class="mb-3">
       <label for="check_type" class="form-label">Тип проверки</label>
       <select class="form-select" id="check_type" name="check_type">
-        <option
-          value="manual"
-          {%
-          if
-          assignment.check_type=""
-          ="manual"
-          %}selected{%
-          endif
-          %}
-        >
-          Ручная
-        </option>
-        <option
-          value="auto"
-          {%
-          if
-          assignment.check_type=""
-          ="auto"
-          %}selected{%
-          endif
-          %}
-        >
-          Автоматическая (скрипт)
-        </option>
-        <option
-          value="quiz"
-          {%
-          if
-          assignment.check_type=""
-          ="quiz"
-          %}selected{%
-          endif
-          %}
-        >
-          Тест
-        </option>
+        <option value="manual" {% if assignment.check_type == 'manual' %}selected{% endif %}>Ручная</option>
+        <option value="auto" {% if assignment.check_type == 'auto' %}selected{% endif %}>Автоматическая (скрипт)</option>
+        <option value="quiz" {% if assignment.check_type == 'quiz' %}selected{% endif %}>Тест</option>
       </select>
     </div>
 
     <!-- Блок выбора скрипта (только для auto) -->
-    <div id="auto-script" style="display: none">
+    <div id="auto-script" style="display: none;">
       <div class="mb-3">
-        <label for="script_id" class="form-label"
-          >Скрипт проверки (универсальный)</label
-        >
+        <label for="script_id" class="form-label">Скрипт проверки (универсальный)</label>
         <select class="form-select" id="script_id" name="script_id">
           <option value="">-- Не выбран --</option>
           {% for s in scripts %}
-          <option
-            value="{{ s.id }}"
-            {%
-            if
-            assignment.language_scripts.first()
-            and
-            assignment.language_scripts.first().test_script_id=""
-            ="s.id"
-            %}selected{%
-            endif
-            %}
-          >
-            {{ s.name }} ({{ s.language }})
-          </option>
+            <option value="{{ s.id }}" {% if assignment.language_scripts.first() and assignment.language_scripts.first().test_script_id == s.id %}selected{% endif %}>
+              {{ s.name }} ({{ s.language }})
+            </option>
           {% endfor %}
         </select>
       </div>
@@ -98,82 +39,26 @@
     <div class="mb-3">
       <label class="form-label">Видимость</label>
       <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="visibility"
-          value="public"
-          id="vis-public"
-          {%
-          if
-          current_visibility=""
-          ="public"
-          %}checked{%
-          endif
-          %}
-        />
-        <label class="form-check-label" for="vis-public"
-          >Публичное (видят все, включая гостей)</label
-        >
+        <input class="form-check-input" type="radio" name="visibility" value="public" id="vis-public" {% if current_visibility == 'public' %}checked{% endif %}>
+        <label class="form-check-label" for="vis-public">Публичное (видят все, включая гостей)</label>
       </div>
       <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="visibility"
-          value="authenticated"
-          id="vis-auth"
-          {%
-          if
-          current_visibility=""
-          ="authenticated"
-          %}checked{%
-          endif
-          %}
-        />
-        <label class="form-check-label" for="vis-auth"
-          >Только для авторизованных пользователей</label
-        >
+        <input class="form-check-input" type="radio" name="visibility" value="authenticated" id="vis-auth" {% if current_visibility == 'authenticated' %}checked{% endif %}>
+        <label class="form-check-label" for="vis-auth">Только для авторизованных пользователей</label>
       </div>
       <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="visibility"
-          value="group"
-          id="vis-group"
-          {%
-          if
-          current_visibility=""
-          ="group"
-          %}checked{%
-          endif
-          %}
-        />
-        <label class="form-check-label" for="vis-group"
-          >Только для группы</label
-        >
+        <input class="form-check-input" type="radio" name="visibility" value="group" id="vis-group" {% if current_visibility == 'group' %}checked{% endif %}>
+        <label class="form-check-label" for="vis-group">Только для группы</label>
       </div>
     </div>
 
     <!-- Выбор группы -->
-    <div id="group-select" class="mb-3" style="display: none">
+    <div id="group-select" class="mb-3" style="display: none;">
       <label for="group_id" class="form-label">Группа</label>
       <select class="form-select" id="group_id" name="group_id">
         <option value="">-- Выберите группу --</option>
         {% for group in groups %}
-        <option
-          value="{{ group.id }}"
-          {%
-          if
-          assignment.group_id=""
-          ="group.id"
-          %}selected{%
-          endif
-          %}
-        >
-          {{ group.name }}
-        </option>
+          <option value="{{ group.id }}" {% if assignment.group_id == group.id %}selected{% endif %}>{{ group.name }}</option>
         {% endfor %}
       </select>
     </div>
@@ -181,36 +66,20 @@
     <!-- Дедлайн и попытки -->
     <div class="row mb-3">
       <div class="col-md-6">
-        <label for="deadline" class="form-label"
-          >Дедлайн (локальное время)</label
-        >
-        <input
-          type="datetime-local"
-          class="form-control"
-          id="deadline"
-          name="deadline"
-          value="{{ assignment.deadline.strftime('%Y-%m-%dT%H:%M') if assignment.deadline else '' }}"
-        />
-        <div class="form-text">
-          Оставьте пустым, если без ограничения. Хранится в UTC.
-        </div>
+        <label for="deadline" class="form-label">Дедлайн (локальное время)</label>
+        <input type="datetime-local" class="form-control" id="deadline" name="deadline"
+               value="{{ assignment.deadline.strftime('%Y-%m-%dT%H:%M') if assignment.deadline else '' }}">
+        <div class="form-text">Оставьте пустым, если без ограничения. Хранится в UTC.</div>
       </div>
       <div class="col-md-6">
         <label for="max_attempts" class="form-label">Максимум попыток</label>
-        <input
-          type="number"
-          class="form-control"
-          id="max_attempts"
-          name="max_attempts"
-          min="0"
-          value="{{ assignment.max_attempts }}"
-        />
+        <input type="number" class="form-control" id="max_attempts" name="max_attempts" min="0" value="{{ assignment.max_attempts }}">
         <div class="form-text">0 — без ограничений.</div>
       </div>
     </div>
 
     <!-- Блок тестовых вопросов -->
-    <div id="quiz-section" style="display: none">
+    <div id="quiz-section" style="display: none;">
       <h5 class="mt-4">Вопросы теста</h5>
       <div id="questions-container">
         {% for question in questions %}
@@ -218,150 +87,52 @@
           <div class="card-body">
             <div class="mb-2">
               <label>Текст вопроса</label>
-              <input
-                type="text"
-                class="form-control"
-                name="question_text"
-                value="{{ question.question_text }}"
-                required
-              />
+              <input type="text" class="form-control" name="question_text" value="{{ question.question_text }}" required>
             </div>
             <div class="mb-2">
               <label>Тип</label>
               <select class="form-select" name="question_type">
-                <option
-                  value="single"
-                  {%
-                  if
-                  question.question_type=""
-                  ="single"
-                  %}selected{%
-                  endif
-                  %}
-                >
-                  Один вариант
-                </option>
-                <option
-                  value="multiple"
-                  {%
-                  if
-                  question.question_type=""
-                  ="multiple"
-                  %}selected{%
-                  endif
-                  %}
-                >
-                  Несколько вариантов
-                </option>
-                <option
-                  value="open"
-                  {%
-                  if
-                  question.question_type=""
-                  ="open"
-                  %}selected{%
-                  endif
-                  %}
-                >
-                  Развёрнутый ответ
-                </option>
+                <option value="single" {% if question.question_type == 'single' %}selected{% endif %}>Один вариант</option>
+                <option value="multiple" {% if question.question_type == 'multiple' %}selected{% endif %}>Несколько вариантов</option>
+                <option value="open" {% if question.question_type == 'open' %}selected{% endif %}>Развёрнутый ответ</option>
               </select>
             </div>
             <div class="mb-2">
               <label>Баллы за вопрос</label>
-              <input
-                type="number"
-                class="form-control"
-                name="question_score"
-                min="0"
-                step="0.1"
-                value="{{ question.max_score }}"
-                required
-              />
+              <input type="number" class="form-control" name="question_score" min="0" step="0.1" value="{{ question.max_score }}" required>
             </div>
             <div class="options-container-{{ loop.index0 }} mb-2">
               {% for option in question.options %}
               <div class="input-group mb-1">
-                <input
-                  type="text"
-                  class="form-control"
-                  name="option_text_{{ loop.index0 }}[]"
-                  value="{{ option.option_text }}"
-                  placeholder="Текст варианта"
-                />
+                <input type="text" class="form-control" name="option_text_{{ loop.index0 }}[]" value="{{ option.option_text }}" placeholder="Текст варианта">
                 <div class="input-group-text">
                   {% if question.question_type == 'single' %}
-                  <input
-                    type="radio"
-                    name="option_correct_{{ loop.index0 }}"
-                    value="{{ loop.index0 }}"
-                    {%
-                    if
-                    option.is_correct
-                    %}checked{%
-                    endif
-                    %}
-                  />
+                    <input type="radio" name="option_correct_{{ loop.index0 }}" value="{{ loop.index0 }}" {% if option.is_correct %}checked{% endif %}>
                   {% else %}
-                  <input
-                    type="checkbox"
-                    name="option_correct_{{ loop.index0 }}[]"
-                    value="{{ loop.index0 }}"
-                    {%
-                    if
-                    option.is_correct
-                    %}checked{%
-                    endif
-                    %}
-                  />
+                    <input type="checkbox" name="option_correct_{{ loop.index0 }}[]" value="{{ loop.index0 }}" {% if option.is_correct %}checked{% endif %}>
                   {% endif %}
                 </div>
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-danger"
-                  onclick="this.closest('.input-group').remove()"
-                >
-                  ×
-                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.input-group').remove()">×</button>
               </div>
               {% endfor %}
             </div>
-            <button
-              type="button"
-              class="btn btn-sm btn-outline-secondary"
-              onclick="addOption(this, '{{ loop.index0 }}')"
-            >
-              + Вариант
-            </button>
-            <button
-              type="button"
-              class="btn btn-sm btn-danger float-end"
-              onclick="this.closest('.card').remove()"
-            >
-              Удалить вопрос
-            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addOption(this, '{{ loop.index0 }}')">+ Вариант</button>
+            <button type="button" class="btn btn-sm btn-danger float-end" onclick="this.closest('.card').remove()">Удалить вопрос</button>
           </div>
         </div>
         {% endfor %}
       </div>
-      <button
-        type="button"
-        class="btn btn-outline-primary btn-sm mt-2"
-        onclick="addQuestion()"
-      >
-        + Добавить вопрос
-      </button>
+      <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addQuestion()">+ Добавить вопрос</button>
     </div>
 
-    <button type="submit" class="btn btn-primary mt-4">
-      Сохранить изменения
-    </button>
-    <a href="{{ url_for('admin.index') }}" class="btn btn-secondary mt-4"
-      >Отмена</a
-    >
+    <button type="submit" class="btn btn-primary mt-4">Сохранить изменения</button>
+    <a href="{{ url_for('admin.index') }}" class="btn btn-secondary mt-4">Отмена</a>
   </form>
 </div>
-{% endblock %} {% block scripts %} {{ super() }}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
 <script>
   // ---------- Вспомогательные функции для дедлайна ----------
   function getUTCOffsetMinutes() {
@@ -418,7 +189,7 @@
   window.addEventListener('DOMContentLoaded', toggleGroup);
 
   // ---------- Конструктор вопросов ----------
-  var questionIndex = {{ questions|length }};
+  var questionIndex = {{ questions.count() }}; 
 
   function updateOptionInputs(card) {
     var typeSelect = card.querySelector('select[name="question_type"]');
