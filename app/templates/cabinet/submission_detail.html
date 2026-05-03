@@ -17,16 +17,23 @@
                 {% endif %}
             </p>
             <p>
-                <strong>Баллы:</strong> {{ submission.score if submission.score is not none else '-' }}
+                <strong>Баллы:</strong>
+                {{ submission.score if submission.score is not none else '-' }}
             </p>
             <p>
-                <strong>Комментарий проверяющего:</strong> {{ submission.feedback or 'Нет комментария' }}
+                <strong>Комментарий проверяющего:</strong>
+                {{ submission.feedback or 'Нет комментария' }}
             </p>
             <p>
-                <strong>Язык решения:</strong> {{ submission.language or 'не указан' }}
+                {% if submission.assignment.check_type != 'quiz' %}
+                <p>
+                    <strong>Язык решения:</strong> {{ submission.language or 'не указан' }}
+                </p>
+                {% endif %}
             </p>
             <p>
-                <strong>Дата отправки:</strong> {{ submission.created_at | localtime(utc_offset) }}
+                <strong>Дата отправки:</strong>
+                {{ submission.created_at | localtime(utc_offset) }}
             </p>
         </div>
     </div>
@@ -37,7 +44,8 @@
     <div class="card mb-2">
         <div class="card-body">
             <p>
-                <strong>{{ answer.question.question_text }}</strong> ({{ answer.question.question_type }})
+                <strong>{{ answer.question.question_text }}</strong>
+                ({{ answer.question.question_type }})
             </p>
             {% if answer.question.question_type == 'open' %}
             <p>Ваш ответ: {{ answer.open_answer or 'Не дан' }}</p>
