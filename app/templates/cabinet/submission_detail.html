@@ -1,67 +1,68 @@
 {% extends "base.html" %} {% block body %}
 <div class="container" style="max-width: 800px">
-  <h2>Решение по заданию «{{ submission.assignment.title }}»</h2>
-  <div class="card mb-3">
-    <div class="card-body">
-      <p>
-        <strong>Статус:</strong>
-        {% if submission.status == 'pending' %}
-        <span class="badge bg-warning text-dark">Ожидает проверки</span>
-        {% elif submission.status == 'passed' %}
-        <span class="badge bg-success">Пройдено</span>
-        {% elif submission.status == 'failed' %}
-        <span class="badge bg-danger">Не пройдено</span>
-        {% else %}
-        <span class="badge bg-secondary">{{ submission.status }}</span>
-        {% endif %}
-      </p>
-      <p>
-        <strong>Баллы:</strong>
-        {{ submission.score if submission.score is not none else '-' }}
-      </p>
-      <p>
-        <strong>Комментарий проверяющего:</strong>
-        {{ submission.feedback or 'Нет комментария' }}
-      </p>
-      <p>
-        <strong>Язык решения:</strong>
-        {{ submission.language or 'не указан' }}
-      </p>
-      <p>
-        <strong>Дата отправки:</strong>
-        {{ submission.created_at | localtime(utc_offset) }}
-      </p>
+    <h2>Решение по заданию «{{ submission.assignment.title }}»</h2>
+    <div class="card mb-3">
+        <div class="card-body">
+            <p>
+                <strong>Статус:</strong>
+                {% if submission.status == 'pending' %}
+                <span class="badge bg-warning text-dark">Ожидает проверки</span>
+                {% elif submission.status == 'passed' %}
+                <span class="badge bg-success">Пройдено</span>
+                {% elif submission.status == 'failed' %}
+                <span class="badge bg-danger">Не пройдено</span>
+                {% else %}
+                <span class="badge bg-secondary">{{ submission.status }}</span>
+                {% endif %}
+            </p>
+            <p>
+                <strong>Баллы:</strong>
+                {{ submission.score if submission.score is not none else '-' }}
+            </p>
+            <p>
+                <strong>Комментарий проверяющего:</strong>
+                {{ submission.feedback or 'Нет комментария' }}
+            </p>
+            <p>
+                <strong>Язык решения:</strong>
+                {{ submission.language or 'не указан' }}
+            </p>
+            <p>
+                <strong>Дата отправки:</strong>
+                {{ submission.created_at | localtime(utc_offset) }}
+            </p>
+        </div>
     </div>
-  </div>
-  <div class="card">
-    <div class="card-header">Ваше решение</div>
-    <div>
-      {% if submission.answer_text %}
-      <div class="card-body">
-        <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit">
-{{ submission.answer_text }}</pre
+    <div class="card">
+        <div class="card-header">Ваше решение</div>
+        <div>
+            {% if submission.answer_text %}
+            <div class="card-body">
+                <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit">
+                    {{ submission.answer_text }}
+                </pre
         >
-      </div>
-      {% else %}
-      <p class="text-muted">Решение не содержит текста.</p>
-      {% endif %} {% if submission.answer_file %}
-      <hr />
-      <p>
-        <strong>Прикреплённые файлы:</strong>
-      </p>
-      <ul>
-        {% for file in submission.answer_file.split(',') %}
-        <li>{{ file }}</li>
-        {% endfor %}
-      </ul>
-      <p class="text-muted small">
-        Файлы доступны только для скачивания администратором.
-      </p>
-      {% endif %}
+            </div>
+            {% else %}
+            <p class="text-muted">Решение не содержит текста.</p>
+            {% endif %} {% if submission.answer_file %}
+            <hr>
+            <p>
+                <strong>Прикреплённые файлы:</strong>
+            </p>
+            <ul>
+                {% for file in submission.answer_file.split(',') %}
+                <li>{{ file }}</li>
+                {% endfor %}
+            </ul>
+            <p class="text-muted small">
+                Файлы доступны только для скачивания администратором.
+            </p>
+            {% endif %}
+        </div>
     </div>
-  </div>
-  <a href="{{ url_for('cabinet.index') }}" class="btn btn-secondary mt-3"
-    >← Назад в кабинет</a
+    <a href="{{ url_for('cabinet.index') }}" class="btn btn-secondary mt-3">← Назад в кабинет
+    </a
   >
 </div>
 {% endblock %}

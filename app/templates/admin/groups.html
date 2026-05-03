@@ -1,65 +1,51 @@
 {% extends "base.html" %} {% block body %}
 <div class="container">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Группы</h1>
-    <a href="{{ url_for('admin.new_group') }}" class="btn btn-success"
-      >+ Новая группа</a
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Группы</h1>
+        <a href="{{ url_for('admin.new_group') }}" class="btn btn-success">+ Новая группа
+        </a
     >
-  </div>
-  {% if groups %}
-  <div class="table-responsive">
-    <table class="table table-striped">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Название</th>
-          <th>Участников</th>
-          <th>Действия</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for g in groups %}
-        <tr>
-          <td>{{ g.id }}</td>
-          <td>{{ g.name }}</td>
-          <td>{{ g.members|length }}</td>
-          <td>
-            <a
-              href="{{ url_for('admin.manage_members', id=g.id) }}"
-              class="btn btn-sm btn-info"
-              >Участники</a
+    </div>
+    {% if groups %}
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Название</th>
+                    <th>Участников</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for g in groups %}
+                <tr>
+                    <td>{{ g.id }}</td>
+                    <td>{{ g.name }}</td>
+                    <td>{{ g.members|length }}</td>
+                    <td>
+                        <a href="{{ url_for('admin.manage_members', id=g.id) }}" class="btn btn-sm btn-info">Участники
+                        </a
             >
-            <a
-              href="{{ url_for('admin.list_invites', id=g.id) }}"
-              class="btn btn-sm btn-outline-primary"
-              >Приглашения</a
+                        <a href="{{ url_for('admin.list_invites', id=g.id) }}" class="btn btn-sm btn-outline-primary">Приглашения
+                        </a
             >
-            <a
-              href="{{ url_for('admin.edit_group', id=g.id) }}"
-              class="btn btn-sm btn-warning"
-              >Ред.</a
+                        <a href="{{ url_for('admin.edit_group', id=g.id) }}" class="btn btn-sm btn-warning">Ред.
+                        </a
             >
-            <form
-              method="POST"
-              action="{{ url_for('admin.delete_group', id=g.id) }}"
-              style="display: inline"
-            >
-              <button
-                type="submit"
-                class="btn btn-sm btn-danger"
-                onclick="return confirm('Удалить группу?');"
-              >
-                Удалить
-              </button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <div class="alert alert-info">Нет ни одной группы.</div>
-  {% endif %}
+                        <form method="POST" action="{{ url_for('admin.delete_group', id=g.id) }}" style="display: inline">
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Удалить группу?');">
+                                Удалить
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">Нет ни одной группы.</div>
+    {% endif %}
 </div>
 {% endblock %}

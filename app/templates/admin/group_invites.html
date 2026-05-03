@@ -1,85 +1,78 @@
 {% extends "base.html" %} {% block body %}
 <div class="container">
-  <h2>Приглашения для группы «{{ group.name }}»</h2>
-  <form
-    method="POST"
-    action="{{ url_for('admin.create_invite', id=group.id) }}"
-    class="row g-3 mb-4"
-  >
-    <div class="col-auto">
-      <input
-        type="number"
-        name="max_uses"
-        class="form-control"
-        placeholder="Макс. использований (0 — безлимит)"
-        min="0"
-      />
-    </div>
-    <div class="col-auto">
-      <input
-        type="number"
-        name="expires_days"
-        class="form-control"
-        placeholder="Срок действия (дней, 0 — бессрочно)"
-        min="0"
-      />
-    </div>
-    <div class="col-auto">
-      <button type="submit" class="btn btn-primary">Создать приглашение</button>
-    </div>
-  </form>
-  {% if invites %}
-  <table class="table table-striped">
-    <thead>
-      <tr>
-        <th>Ссылка</th>
-        <th>Использовано</th>
-        <th>Лимит</th>
-        <th>Активно</th>
-        <th>Истекает</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for inv in invites %}
-      <tr>
-        <td>
-          <code
-            >{{ url_for('main.join_group', token=inv.token, _external=True)
-            }}</code
+    <h2>Приглашения для группы «{{ group.name }}»</h2>
+    <form method="POST" action="{{ url_for('admin.create_invite', id=group.id) }}" class="row g-3 mb-4">
+        <div class="col-auto">
+            <input
+                type="number"
+                name="max_uses"
+                class="form-control"
+                placeholder="Макс. использований (0 — безлимит)"
+                min="0"
+            >
+        </div>
+        <div class="col-auto">
+            <input
+                type="number"
+                name="expires_days"
+                class="form-control"
+                placeholder="Срок действия (дней, 0 — бессрочно)"
+                min="0"
+            >
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Создать приглашение</button>
+        </div>
+    </form>
+    {% if invites %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Ссылка</th>
+                <th>Использовано</th>
+                <th>Лимит</th>
+                <th>Активно</th>
+                <th>Истекает</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inv in invites %}
+            <tr>
+                <td>
+                    <code>
+                        {{ url_for('main.join_group', token=inv.token, _external=True)
+            }}
+                    </code
           >
-        </td>
-        <td>
-          {{ inv.uses }}{% if inv.max_uses > 0 %} / {{ inv.max_uses }}{% endif
+                </td>
+                <td>
+                    {{ inv.uses }}{% if inv.max_uses > 0 %} / {{ inv.max_uses }}{% endif
           %}
-        </td>
-        <td>{{ inv.max_uses if inv.max_uses > 0 else '∞' }}</td>
-        <td>{{ 'Да' if inv.is_active else 'Нет' }}</td>
-        <td>
-          {{ inv.expires_at.strftime('%d.%m.%Y') if inv.expires_at else '∞' }}
-        </td>
-        <td>
-          {% if inv.is_active %}
-          <form
-            method="POST"
-            action="{{ url_for('admin.deactivate_invite', id=group.id, invite_id=inv.id) }}"
-            style="display: inline"
-          >
-            <button type="submit" class="btn btn-sm btn-warning">
-              Деактивировать
-            </button>
-          </form>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p>Нет созданных приглашений.</p>
-  {% endif %}
-  <a href="{{ url_for('admin.list_groups') }}" class="btn btn-secondary"
-    >← Назад к группам</a
+                </td>
+                <td>{{ inv.max_uses if inv.max_uses > 0 else '∞' }}</td>
+                <td>{{ 'Да' if inv.is_active else 'Нет' }}</td>
+                <td>
+                    {{ inv.expires_at.strftime('%d.%m.%Y') if inv.expires_at else '∞' }}
+                </td>
+                <td>
+                    {% if inv.is_active %}
+                    <form method="POST" action="{{ url_for('admin.deactivate_invite', id=group.id, invite_id=inv.id) }}" style="display: inline">
+                        <button type="submit" class="btn btn-sm btn-warning">
+                            Деактивировать
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Нет созданных приглашений.</p>
+    {% endif %}
+    <a href="{{ url_for('admin.list_groups') }}" class="btn btn-secondary">← Назад к группам
+    </a
   >
 </div>
 {% endblock %}

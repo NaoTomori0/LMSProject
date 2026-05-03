@@ -19,8 +19,6 @@
         <option value="quiz" {% if assignment.check_type == 'quiz' %}selected{% endif %}>Тест</option>
       </select>
     </div>
-
-    <!-- Блок выбора скрипта (только для auto) -->
     <div id="auto-script" style="display: none;">
       <div class="mb-3">
         <label for="script_id" class="form-label">Скрипт проверки (универсальный)</label>
@@ -34,8 +32,6 @@
         </select>
       </div>
     </div>
-
-    <!-- Видимость задания -->
     <div class="mb-3">
       <label class="form-label">Видимость</label>
       <div class="form-check">
@@ -51,8 +47,6 @@
         <label class="form-check-label" for="vis-group">Только для группы</label>
       </div>
     </div>
-
-    <!-- Выбор группы -->
     <div id="group-select" class="mb-3" style="display: none;">
       <label for="group_id" class="form-label">Группа</label>
       <select class="form-select" id="group_id" name="group_id">
@@ -62,14 +56,12 @@
         {% endfor %}
       </select>
     </div>
-
-    <!-- Дедлайн и попытки -->
     <div class="row mb-3">
       <div class="col-md-6">
-        <label for="deadline" class="form-label">Дедлайн</label>
+        <label for="deadline" class="form-label">Дедлайн (локальное время)</label>
         <input type="datetime-local" class="form-control" id="deadline" name="deadline"
                value="{{ assignment.deadline.strftime('%Y-%m-%dT%H:%M') if assignment.deadline else '' }}">
-        <div class="form-text">Оставьте пустым, если без ограничения.</div>
+        <div class="form-text">Оставьте пустым, если без ограничения. Хранится в UTC.</div>
       </div>
       <div class="col-md-6">
         <label for="max_attempts" class="form-label">Максимум попыток</label>
@@ -78,8 +70,6 @@
         <div class="form-text">0 — без ограничений.</div>
       </div>
     </div>
-
-    <!-- Блок тестовых вопросов -->
     <div id="quiz-section" style="display: none;">
       <h5 class="mt-4">Вопросы теста</h5>
       <div id="questions-container">
@@ -125,7 +115,6 @@
       </div>
       <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addQuestion()">+ Добавить вопрос</button>
     </div>
-
     <button type="submit" class="btn btn-primary mt-4">Сохранить изменения</button>
     <a href="{{ url_for('admin.index') }}" class="btn btn-secondary mt-4">Отмена</a>
   </form>
@@ -135,6 +124,49 @@
 {% block scripts %}
 {{ super() }}
 <script>
+  // ==================== Конвертация дедлайна в UTC ====================
+  function getUTCOffsetMinutes() {
+    const match = document.cookie.match(/(?:^|;\s*)timezone_offset=([^;]*)/);
+    return match ? parseInt(match[1]) : -new Date().getTimezoneOffset();
+  }
+
+  // При загрузке страницы: если есть deadline (UTC), показываем в локальном времени
+  function displayDeadlineInLocal() {
+    const input = document.getElementById('deadline');
+    if (!input.value) return;
+    const utcDate = new Date(input.value + 'Z');  // интерпретируем как UTC
+    if (isNaN(utcDate)) return;
+    const offsetMinutes = getUTCOffsetMinutes();
+    const localDate = new Date(utcDate.getTime() - offsetMinutes * 60000);
+    const yyyy = localDate.getFullYear();
+    const mm = String(localDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(localDate.getDate()).padStart(2, '0');
+    const hh = String(localDate.getHours()).padStart(2, '0');
+    const min = String(localDate.getMinutes()).padStart(2, '0');
+    input.value = `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+  }
+  window.addEventListener('DOMContentLoaded', displayDeadlineInLocal);
+
+  // Перед отправкой переводим локальное время обратно в UTC
+  function convertDeadlineToUTC() {
+    const input = document.getElementById('deadline');
+    if (!input.value) return;
+    const localDate = new Date(input.value);
+    if (isNaN(localDate)) return;
+    const offsetMinutes = getUTCOffsetMinutes();
+    const utcDate = new Date(localDate.getTime() + offsetMinutes * 60000);
+    const yyyy = utcDate.getUTCFullYear();
+    const mm = String(utcDate.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(utcDate.getUTCDate()).padStart(2, '0');
+    const hh = String(utcDate.getUTCHours()).padStart(2, '0');
+    const min = String(utcDate.getUTCMinutes()).padStart(2, '0');
+    input.value = `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+  }
+
+  const form = document.getElementById('assignment-form');
+  form.addEventListener('submit', convertDeadlineToUTC);
+
+  // ==================== Логика переключения блоков ====================
   const checkType = document.getElementById("check_type");
   const autoDiv = document.getElementById("auto-script");
   const quizSection = document.getElementById("quiz-section");
@@ -158,6 +190,7 @@
   radioGroup.addEventListener("change", toggleGroupSelect);
   window.addEventListener("DOMContentLoaded", toggleGroupSelect);
 
+  // ==================== Конструктор вопросов ====================
   let questionIndex = document.querySelectorAll("#questions-container .card").length;
 
   function updateOptionsForQuestion(card) {
@@ -183,7 +216,6 @@
     });
   }
 
-  // Применяем актуальные типы к существующим вопросам
   document.querySelectorAll('#questions-container .card').forEach(card => {
     updateOptionsForQuestion(card);
     const typeSelect = card.querySelector('select[name="question_type"]');
