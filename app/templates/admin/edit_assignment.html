@@ -123,129 +123,144 @@
 {% block scripts %}
 {{ super() }}
 <script>
-  // ---------- Корректировка дедлайна по часовому поясу ----------
+  // ---------- Вспомогательные функции для дедлайна ----------
   function getUTCOffsetMinutes() {
-    const m = document.cookie.match(/(?:^|;\s*)timezone_offset=([^;]*)/);
-    return m ? parseInt(m[1]) : -new Date().getTimezoneOffset();
+    var match = document.cookie.match(/(?:^|;\s*)timezone_offset=([^;]*)/);
+    return match ? parseInt(match[1]) : -(new Date().getTimezoneOffset());
   }
 
-  // При загрузке: показать сохранённый UTC‑дедлайн в локальном времени
+  // При загрузке показываем дедлайн в локальном времени
   (function showLocalDeadline() {
-    const inp = document.getElementById('deadline');
-    if (!inp.value) return;
-    const utc = new Date(inp.value + 'Z');
-    if (isNaN(utc)) return;
-    const off = getUTCOffsetMinutes();
-    const local = new Date(utc.getTime() - off * 60000);
-    inp.value = local.toISOString().slice(0, 16);
+    var input = document.getElementById('deadline');
+    if (!input.value) return;
+    var utcDate = new Date(input.value + 'Z');
+    if (isNaN(utcDate.getTime())) return;
+    var offsetMinutes = getUTCOffsetMinutes();
+    var localDate = new Date(utcDate.getTime() - offsetMinutes * 60000);
+    // Форматируем в YYYY-MM-DDTHH:MM
+    var year = localDate.getFullYear();
+    var month = String(localDate.getMonth() + 1).padStart(2, '0');
+    var day = String(localDate.getDate()).padStart(2, '0');
+    var hours = String(localDate.getHours()).padStart(2, '0');
+    var minutes = String(localDate.getMinutes()).padStart(2, '0');
+    input.value = year + '-' + month + '-' + day + 'T' + hours + ':' + minutes;
   })();
 
-  // Перед отправкой: перевести локальное время обратно в UTC
+  // Перед отправкой переводим локальное время обратно в UTC
   document.getElementById('assignment-form').addEventListener('submit', function() {
-    const inp = document.getElementById('deadline');
-    if (!inp.value) return;
-    const local = new Date(inp.value);
-    if (isNaN(local)) return;
-    const off = getUTCOffsetMinutes();
-    const utc = new Date(local.getTime() + off * 60000);
-    inp.value = utc.toISOString().slice(0, 16);
+    var input = document.getElementById('deadline');
+    if (!input.value) return;
+    var localDate = new Date(input.value);
+    if (isNaN(localDate.getTime())) return;
+    var offsetMinutes = getUTCOffsetMinutes();
+    var utcDate = new Date(localDate.getTime() + offsetMinutes * 60000);
+    input.value = utcDate.toISOString().slice(0, 16);
   });
 
   // ---------- Переключение блоков ----------
-  const checkType = document.getElementById('check_type');
-  const autoDiv = document.getElementById('auto-script');
-  const quizSection = document.getElementById('quiz-section');
+  var checkType = document.getElementById('check_type');
+  var autoDiv = document.getElementById('auto-script');
+  var quizSection = document.getElementById('quiz-section');
   function toggleBlocks() {
-    autoDiv.style.display   = checkType.value === 'auto' ? 'block' : 'none';
+    autoDiv.style.display = checkType.value === 'auto' ? 'block' : 'none';
     quizSection.style.display = checkType.value === 'quiz' ? 'block' : 'none';
   }
   checkType.addEventListener('change', toggleBlocks);
   window.addEventListener('DOMContentLoaded', toggleBlocks);
 
-  const radioGroup = document.getElementById('vis-group');
-  const groupDiv = document.getElementById('group-select');
-  function toggleGroup() { groupDiv.style.display = radioGroup.checked ? 'block' : 'none'; }
-  document.querySelectorAll('input[name="visibility"]').forEach(r => r.addEventListener('change', toggleGroup));
+  var radioGroup = document.getElementById('vis-group');
+  var groupDiv = document.getElementById('group-select');
+  function toggleGroup() {
+    groupDiv.style.display = radioGroup.checked ? 'block' : 'none';
+  }
+  document.querySelectorAll('input[name="visibility"]').forEach(function(r) {
+    r.addEventListener('change', toggleGroup);
+  });
   window.addEventListener('DOMContentLoaded', toggleGroup);
 
-  // ---------- Конструктор тестов ----------
-  let questionIndex = {{ assignment.quiz_questions|length }};
+  // ---------- Конструктор вопросов ----------
+  var questionIndex = {{ assignment.quiz_questions|length }};
 
   function updateOptionInputs(card) {
-    const typeSel = card.querySelector('select[name="question_type"]');
-    if (!typeSel) return;
-    const curType = typeSel.value;
-    const cont = card.querySelector('[class*="options-container-"]');
-    if (!cont) return;
-    const m = cont.className.match(/options-container-(\d+)/);
-    if (!m) return;
-    const qIdx = m[1];
-    cont.querySelectorAll('.input-group').forEach(g => {
-      const inp = g.querySelector('input[type=radio], input[type=checkbox]');
-      if (!inp) return;
-      const newType = curType === 'single' ? 'radio' : 'checkbox';
-      inp.type = newType;
-      inp.name = 'option_correct_' + qIdx + (newType === 'checkbox' ? '[]' : '');
-      if (newType === 'radio') inp.checked = false;
+    var typeSelect = card.querySelector('select[name="question_type"]');
+    if (!typeSelect) return;
+    var currentType = typeSelect.value;
+    var container = card.querySelector('[class*="options-container-"]');
+    if (!container) return;
+    var match = container.className.match(/options-container-(\d+)/);
+    if (!match) return;
+    var qIdx = match[1];
+    var groups = container.querySelectorAll('.input-group');
+    groups.forEach(function(group) {
+      var input = group.querySelector('input[type=radio], input[type=checkbox]');
+      if (!input) return;
+      var newType = currentType === 'single' ? 'radio' : 'checkbox';
+      input.type = newType;
+      input.name = 'option_correct_' + qIdx + (newType === 'checkbox' ? '[]' : '');
+      if (newType === 'radio') input.checked = false;
     });
   }
 
   // Привязываем обработчики к существующим вопросам
-  document.querySelectorAll('#questions-container .card').forEach(card => {
+  document.querySelectorAll('#questions-container .card').forEach(function(card) {
     updateOptionInputs(card);
-    const sel = card.querySelector('select[name="question_type"]');
-    if (sel) sel.addEventListener('change', () => updateOptionInputs(card));
+    var typeSelect = card.querySelector('select[name="question_type"]');
+    if (typeSelect) {
+      typeSelect.addEventListener('change', function() { updateOptionInputs(card); });
+    }
   });
 
   function addQuestion() {
-    const cont = document.getElementById('questions-container');
-    const idx = questionIndex++;
-    const div = document.createElement('div');
+    var container = document.getElementById('questions-container');
+    var idx = questionIndex++;
+    var div = document.createElement('div');
     div.className = 'card mb-3';
-    div.innerHTML = `
-      <div class="card-body">
-        <div class="mb-2">
-          <label>Текст вопроса</label>
-          <input type="text" class="form-control" name="question_text" required>
-        </div>
-        <div class="mb-2">
-          <label>Тип</label>
-          <select class="form-select" name="question_type">
-            <option value="single">Один вариант</option>
-            <option value="multiple">Несколько вариантов</option>
-            <option value="open">Развёрнутый ответ</option>
-          </select>
-        </div>
-        <div class="mb-2">
-          <label>Баллы за вопрос</label>
-          <input type="number" class="form-control" name="question_score" min="0" step="0.1" value="1.0" required>
-        </div>
-        <div class="options-container-${idx} mb-2"></div>
-        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addOption(this, ${idx})">+ Вариант</button>
-        <button type="button" class="btn btn-sm btn-danger float-end" onclick="this.closest('.card').remove()">Удалить вопрос</button>
-      </div>`;
-    const sel = div.querySelector('select[name="question_type"]');
-    if (sel) sel.addEventListener('change', () => updateOptionInputs(div));
-    cont.appendChild(div);
+    div.innerHTML =
+      '<div class="card-body">' +
+        '<div class="mb-2">' +
+          '<label>Текст вопроса</label>' +
+          '<input type="text" class="form-control" name="question_text" required>' +
+        '</div>' +
+        '<div class="mb-2">' +
+          '<label>Тип</label>' +
+          '<select class="form-select" name="question_type">' +
+            '<option value="single">Один вариант</option>' +
+            '<option value="multiple">Несколько вариантов</option>' +
+            '<option value="open">Развёрнутый ответ</option>' +
+          '</select>' +
+        '</div>' +
+        '<div class="mb-2">' +
+          '<label>Баллы за вопрос</label>' +
+          '<input type="number" class="form-control" name="question_score" min="0" step="0.1" value="1.0" required>' +
+        '</div>' +
+        '<div class="options-container-' + idx + ' mb-2"></div>' +
+        '<button type="button" class="btn btn-sm btn-outline-secondary" onclick="addOption(this, ' + idx + ')">+ Вариант</button>' +
+        '<button type="button" class="btn btn-sm btn-danger float-end" onclick="this.closest(\'.card\').remove()">Удалить вопрос</button>' +
+      '</div>';
+    var typeSelect = div.querySelector('select[name="question_type"]');
+    if (typeSelect) {
+      typeSelect.addEventListener('change', function() { updateOptionInputs(div); });
+    }
+    container.appendChild(div);
   }
 
   function addOption(btn, qIdx) {
-    const card = btn.closest('.card');
-    const typeSel = card.querySelector('select[name="question_type"]');
-    const curType = typeSel ? typeSel.value : 'single';
-    const cont = card.querySelector('.options-container-' + qIdx);
-    const optIdx = cont.children.length;
-    const div = document.createElement('div');
+    var card = btn.closest('.card');
+    var typeSelect = card.querySelector('select[name="question_type"]');
+    var currentType = typeSelect ? typeSelect.value : 'single';
+    var container = card.querySelector('.options-container-' + qIdx);
+    var optIdx = container.children.length;
+    var div = document.createElement('div');
     div.className = 'input-group mb-1';
-    const inpType = curType === 'single' ? 'radio' : 'checkbox';
-    const name = 'option_correct_' + qIdx + (inpType === 'checkbox' ? '[]' : '');
-    div.innerHTML = `
-      <input type="text" class="form-control" name="option_text_${qIdx}[]" placeholder="Текст варианта">
-      <div class="input-group-text">
-        <input type="${inpType}" name="${name}" value="${optIdx}">
-      </div>
-      <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.input-group').remove()">×</button>`;
-    cont.appendChild(div);
+    var inputType = currentType === 'single' ? 'radio' : 'checkbox';
+    var name = 'option_correct_' + qIdx + (inputType === 'checkbox' ? '[]' : '');
+    div.innerHTML =
+      '<input type="text" class="form-control" name="option_text_' + qIdx + '[]" placeholder="Текст варианта">' +
+      '<div class="input-group-text">' +
+        '<input type="' + inputType + '" name="' + name + '" value="' + optIdx + '">' +
+      '</div>' +
+      '<button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'.input-group\').remove()">×</button>';
+    container.appendChild(div);
   }
 </script>
 {% endblock %}
