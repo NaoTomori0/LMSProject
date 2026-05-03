@@ -92,6 +92,7 @@ def index():
         assignments = (
             Assignment.query.filter(
                 (Assignment.is_public == True)
+                | ((Assignment.group_id == None) & (Assignment.is_public == False))
                 | (Assignment.group_id.in_(user_group_ids))
             )
             .order_by(Assignment.created_at.desc())
