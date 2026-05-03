@@ -189,7 +189,7 @@
   window.addEventListener('DOMContentLoaded', toggleGroup);
 
   // ---------- Конструктор вопросов ----------
-  var questionIndex = {{ questions.count() }}; 
+  var questionIndex = {{ questions|length }};
 
   function updateOptionInputs(card) {
     var typeSelect = card.querySelector('select[name="question_type"]');
