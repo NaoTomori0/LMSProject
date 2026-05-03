@@ -42,6 +42,9 @@ class Assignment(db.Model):
     group_id = db.Column(db.Integer, db.ForeignKey("group.id"), nullable=True)
     group = db.relationship("Group", backref=db.backref("assignments", lazy="dynamic"))
 
+    deadline = db.Column(db.DateTime, nullable=True)  # дедлайн
+    max_attempts = db.Column(db.Integer, default=0)  # 0 – без ограничений
+
     # Каскадное удаление Submission и AssignmentScript
     submissions = db.relationship(
         "Submission", backref="assignment", lazy="dynamic", cascade="all, delete-orphan"
@@ -69,9 +72,6 @@ class AssignmentScript(db.Model):
     language = db.Column(db.String(20), nullable=False)
 
     test_script = db.relationship("TestScript")
-
-    deadline = db.Column(db.DateTime, nullable=True)  # дедлайн
-    max_attempts = db.Column(db.Integer, default=0)  # 0 – без ограничений
 
 
 # ------------------------------------------------------------
