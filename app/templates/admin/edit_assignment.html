@@ -65,6 +65,8 @@
         </option>
       </select>
     </div>
+
+    <!-- Блок выбора скрипта (только для auto) -->
     <div id="auto-script" style="display: none">
       <div class="mb-3">
         <label for="script_id" class="form-label"
@@ -91,6 +93,8 @@
         </select>
       </div>
     </div>
+
+    <!-- Видимость задания -->
     <div class="mb-3">
       <label class="form-label">Видимость</label>
       <div class="form-check">
@@ -151,6 +155,8 @@
         >
       </div>
     </div>
+
+    <!-- Выбор группы -->
     <div id="group-select" class="mb-3" style="display: none">
       <label for="group_id" class="form-label">Группа</label>
       <select class="form-select" id="group_id" name="group_id">
@@ -171,6 +177,8 @@
         {% endfor %}
       </select>
     </div>
+
+    <!-- Дедлайн и попытки -->
     <div class="row mb-3">
       <div class="col-md-6">
         <label for="deadline" class="form-label"
@@ -183,7 +191,9 @@
           name="deadline"
           value="{{ assignment.deadline.strftime('%Y-%m-%dT%H:%M') if assignment.deadline else '' }}"
         />
-        <div class="form-text">Оставьте пустым, если без ограничения.</div>
+        <div class="form-text">
+          Оставьте пустым, если без ограничения. Хранится в UTC.
+        </div>
       </div>
       <div class="col-md-6">
         <label for="max_attempts" class="form-label">Максимум попыток</label>
@@ -198,6 +208,8 @@
         <div class="form-text">0 — без ограничений.</div>
       </div>
     </div>
+
+    <!-- Блок тестовых вопросов -->
     <div id="quiz-section" style="display: none">
       <h5 class="mt-4">Вопросы теста</h5>
       <div id="questions-container">
@@ -340,6 +352,7 @@
         + Добавить вопрос
       </button>
     </div>
+
     <button type="submit" class="btn btn-primary mt-4">
       Сохранить изменения
     </button>
