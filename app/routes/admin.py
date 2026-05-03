@@ -403,12 +403,15 @@ def edit_assignment(id):
 
         return redirect(url_for("admin.index"))
 
+    questions = assignment.quiz_questions.order_by(QuizQuestion.order).all()
+
     return render_template(
         "admin/edit_assignment.html",
         assignment=assignment,
         scripts=scripts,
         groups=groups,
         current_visibility=current_visibility,
+        questions=questions,
     )
 
 
