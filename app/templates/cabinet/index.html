@@ -1,6 +1,42 @@
-{% extends "base.html" %} {% block body %}
+{% extends "base.html" %}
+{% block body %}
 <div class="container">
     <h1>Личный кабинет</h1>
+    <!-- Статистика -->
+    <div class="row row-cols-1 row-cols-md-4 g-3 mb-4">
+        <div class="col">
+            <div class="card text-center border-primary">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">{{ stats.total_submissions }}</h5>
+                    <p class="card-text">Попыток</p>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card text-center border-success">
+                <div class="card-body">
+                    <h5 class="card-title text-success">{{ stats.total_passed }}</h5>
+                    <p class="card-text">Зачтено</p>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card text-center border-info">
+                <div class="card-body">
+                    <h5 class="card-title text-info">{{ stats.success_percent }}%</h5>
+                    <p class="card-text">Успешность</p>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card text-center border-warning">
+                <div class="card-body">
+                    <h5 class="card-title text-warning">{{ stats.total_score }}</h5>
+                    <p class="card-text">Общий балл</p>
+                </div>
+            </div>
+        </div>
+    </div>
     <h4 class="mb-4">Ваши отправленные решения</h4>
     {% if submissions %}
     <div class="table-responsive">

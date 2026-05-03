@@ -15,7 +15,26 @@ def index():
         .order_by(Submission.created_at.desc())
         .all()
     )
-    return render_template("cabinet/index.html", submissions=submissions)
+
+    # Статистика
+    total_submissions = len(submissions)
+    passed_submissions = [s for s in submissions if s.status == "passed"]
+    total_passed = len(passed_submissions)
+    success_percent = (
+        (total_passed / total_submissions * 100) if total_submissions > 0 else 0
+    )
+    total_score = sum(s.score for s in passed_submissions if s.score is not None)
+    avg_score = (total_score / total_passed) if total_passed > 0 else 0
+
+    stats = {
+        "total_submissions": total_submissions,
+        "total_passed": total_passed,
+        "success_percent": round(success_percent, 1),
+        "total_score": total_score,
+        "avg_score": round(avg_score, 1),
+    }
+
+    return render_template("cabinet/index.html", submissions=submissions, stats=stats)
 
 
 @bp.route("/submission/<int:id>")
