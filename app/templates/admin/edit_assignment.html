@@ -65,6 +65,8 @@
         </option>
       </select>
     </div>
+
+    <!-- Блок выбора скрипта (только для auto) -->
     <div id="auto-script" style="display: none">
       <div class="mb-3">
         <label for="script_id" class="form-label"
@@ -91,6 +93,8 @@
         </select>
       </div>
     </div>
+
+    <!-- Видимость задания -->
     <div class="mb-3">
       <label class="form-label">Видимость</label>
       <div class="form-check">
@@ -151,6 +155,8 @@
         >
       </div>
     </div>
+
+    <!-- Выбор группы (показывается при выборе "Только для группы") -->
     <div id="group-select" class="mb-3" style="display: none">
       <label for="group_id" class="form-label">Группа</label>
       <select class="form-select" id="group_id" name="group_id">
@@ -171,6 +177,8 @@
         {% endfor %}
       </select>
     </div>
+
+    <!-- Дедлайн и попытки -->
     <div class="row mb-3">
       <div class="col-md-6">
         <label for="deadline" class="form-label">Дедлайн</label>
@@ -196,6 +204,8 @@
         <div class="form-text">0 — без ограничений.</div>
       </div>
     </div>
+
+    <!-- Блок тестовых вопросов -->
     <div id="quiz-section" style="display: none">
       <h5 class="mt-4">Вопросы теста</h5>
       <div id="questions-container">
@@ -253,6 +263,18 @@
                 </option>
               </select>
             </div>
+            <div class="mb-2">
+              <label>Баллы за вопрос</label>
+              <input
+                type="number"
+                class="form-control"
+                name="question_score"
+                min="0"
+                step="0.1"
+                value="{{ question.max_score }}"
+                required
+              />
+            </div>
             <div class="options-container-{{ loop.index0 }} mb-2">
               {% for option in question.options %}
               <div class="input-group mb-1">
@@ -264,9 +286,10 @@
                   placeholder="Текст варианта"
                 />
                 <div class="input-group-text">
+                  {% if question.question_type == 'single' %}
                   <input
-                    type="{{ 'radio' if question.question_type == 'single' else 'checkbox' }}"
-                    name="option_correct_{{ loop.index0 }}{% if question.question_type != 'single' %}[]{% endif %}"
+                    type="radio"
+                    name="option_correct_{{ loop.index0 }}"
                     value="{{ loop.index0 }}"
                     {%
                     if
@@ -275,6 +298,19 @@
                     endif
                     %}
                   />
+                  {% else %}
+                  <input
+                    type="checkbox"
+                    name="option_correct_{{ loop.index0 }}[]"
+                    value="{{ loop.index0 }}"
+                    {%
+                    if
+                    option.is_correct
+                    %}checked{%
+                    endif
+                    %}
+                  />
+                  {% endif %}
                 </div>
                 <button
                   type="button"
@@ -312,6 +348,7 @@
         + Добавить вопрос
       </button>
     </div>
+
     <button type="submit" class="btn btn-primary mt-4">
       Сохранить изменения
     </button>
@@ -337,7 +374,6 @@
   const radioAuth = document.getElementById("vis-auth");
   const radioGroup = document.getElementById("vis-group");
   const groupDiv = document.getElementById("group-select");
-
   function toggleGroupSelect() {
     groupDiv.style.display = radioGroup.checked ? "block" : "none";
   }
@@ -399,16 +435,16 @@
           <input type="text" class="form-control" name="question_text" required>
         </div>
         <div class="mb-2">
-            <label>Баллы за вопрос</label>
-            <input type="number" class="form-control" name="question_score" min="0" step="0.1" value="{{ question.max_score }}" required>
-        </div>
-        <div class="mb-2">
           <label>Тип</label>
           <select class="form-select" name="question_type">
             <option value="single">Один вариант</option>
             <option value="multiple">Несколько вариантов</option>
             <option value="open">Развёрнутый ответ</option>
           </select>
+        </div>
+        <div class="mb-2">
+          <label>Баллы за вопрос</label>
+          <input type="number" class="form-control" name="question_score" min="0" step="0.1" value="1.0" required>
         </div>
         <div class="options-container-${idx} mb-2"></div>
         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addOption(this, ${idx})">+ Вариант</button>
