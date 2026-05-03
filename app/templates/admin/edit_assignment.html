@@ -99,9 +99,9 @@
                 <input type="text" class="form-control" name="option_text_{{ q_idx }}[]" value="{{ option.option_text }}" placeholder="Текст варианта">
                 <div class="input-group-text">
                   {% if question.question_type == 'single' %}
-                    <input type="radio" name="option_correct_{{ q_idx }}" value="{{ loop.index0 }}" {% if option.is_correct %}checked{% endif %}>
+                      <input type="radio" name="option_correct_{{ q_idx }}" value="{{ option.id }}" {% if option.is_correct %}checked{% endif %}>
                   {% else %}
-                    <input type="checkbox" name="option_correct_{{ q_idx }}[]" value="{{ loop.index0 }}" {% if option.is_correct %}checked{% endif %}>
+                      <input type="checkbox" name="option_correct_{{ q_idx }}[]" value="{{ option.id }}" {% if option.is_correct %}checked{% endif %}>
                   {% endif %}
                 </div>
                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.input-group').remove()">×</button>

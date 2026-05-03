@@ -373,10 +373,16 @@ def edit_assignment(id):
                 opt_texts = request.form.getlist(f"option_text_{idx}[]")
                 if q_type == "single":
                     correct_value = request.form.get(f"option_correct_{idx}")
-                    correct_option_ids = [int(correct_value)] if correct_value else []
+                    correct_option_ids = (
+                        [int(correct_value)]
+                        if correct_value and int(correct_value) != 0
+                        else []
+                    )
                 else:
                     correct_option_ids = [
-                        int(x) for x in request.form.getlist(f"option_correct_{idx}[]")
+                        int(x)
+                        for x in request.form.getlist(f"option_correct_{idx}[]")
+                        if x and int(x) != 0
                     ]
 
                 existing_options = {
