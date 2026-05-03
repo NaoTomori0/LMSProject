@@ -16,22 +16,41 @@ def index():
         .all()
     )
 
-    # Статистика
-    total_submissions = len(submissions)
-    passed_submissions = [s for s in submissions if s.status == "passed"]
-    total_passed = len(passed_submissions)
-    success_percent = (
-        (total_passed / total_submissions * 100) if total_submissions > 0 else 0
-    )
-    total_score = sum(s.score for s in passed_submissions if s.score is not None)
-    avg_score = (total_score / total_passed) if total_passed > 0 else 0
+    # Уникальные задания, по которым есть отправки
+    unique_assignments = set()
+    best_by_assignment = {}  # assignment_id -> max_score
+    passed_set = set()  # assignment_id, где есть хотя бы один passed
+    total_score = 0
+    total_attempts = 0
+
+    for s in submissions:
+        total_attempts += 1
+        uid = s.assignment_id
+        unique_assignments.add(uid)
+
+        score = s.score if s.score is not None else 0
+        # Обновляем максимум для задания
+        if uid not in best_by_assignment or score > best_by_assignment[uid]:
+            best_by_assignment[uid] = score
+
+        if s.status == "passed":
+            passed_set.add(uid)
+
+    # Суммируем лучшие баллы по каждому заданию
+    total_score = sum(best_by_assignment.values())
+
+    # Количество уникальных заданий, по которым пытались
+    unique_count = len(unique_assignments)
+    # Процент успеха: отношение пройденных заданий к уникальным
+    success_percent = (len(passed_set) / unique_count * 100) if unique_count > 0 else 0
 
     stats = {
-        "total_submissions": total_submissions,
-        "total_passed": total_passed,
+        "total_attempts": total_attempts,
+        "unique_assignments": unique_count,
+        "passed_assignments": len(passed_set),
         "success_percent": round(success_percent, 1),
         "total_score": total_score,
-        "avg_score": round(avg_score, 1),
+        "best_by_assignment": best_by_assignment,  # можно не передавать, но пригодится
     }
 
     return render_template("cabinet/index.html", submissions=submissions, stats=stats)
