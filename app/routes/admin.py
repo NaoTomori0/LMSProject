@@ -263,7 +263,6 @@ def edit_assignment(id):
     scripts = TestScript.query.all()
     groups = Group.query.all()
 
-    # Текущая видимость для формы
     if assignment.is_public:
         current_visibility = "public"
     elif assignment.group_id:
@@ -276,12 +275,14 @@ def edit_assignment(id):
         assignment.description = request.form.get("description")
         assignment.check_type = request.form.get("check_type", "manual")
 
+        # Дедлайн и попытки
         deadline_str = request.form.get("deadline", "").strip()
         assignment.deadline = (
             datetime.strptime(deadline_str, "%Y-%m-%dT%H:%M") if deadline_str else None
         )
         assignment.max_attempts = request.form.get("max_attempts", 0, type=int)
 
+        # Видимость
         visibility = request.form.get("visibility", "public")
         group_id = None
         is_public = False
@@ -304,7 +305,7 @@ def edit_assignment(id):
         assignment.is_public = is_public
         assignment.group_id = group_id
 
-        # Удаляем старые привязки скриптов и вопросы
+        # Удаляемые старые привязки скриптов и вопросы
         AssignmentScript.query.filter_by(assignment_id=assignment.id).delete()
         QuizOption.query.filter(
             QuizOption.question.has(assignment_id=assignment.id)
@@ -314,6 +315,7 @@ def edit_assignment(id):
         ).delete()
         QuizQuestion.query.filter_by(assignment_id=assignment.id).delete()
 
+        # Скрипты для auto
         if assignment.check_type == "auto":
             script_id = request.form.get("script_id", type=int)
             if script_id:
@@ -328,16 +330,16 @@ def edit_assignment(id):
                             )
                         )
 
+        # Обработка тестов
         if assignment.check_type == "quiz":
             question_texts = request.form.getlist("question_text")
             question_types = request.form.getlist("question_type")
-            question_scores = request.form.getlist("question_score")  # баллы за вопрос
+            question_scores = request.form.getlist("question_score")
 
             for idx, q_text in enumerate(question_texts):
                 if not q_text.strip():
                     continue
                 q_type = question_types[idx] if idx < len(question_types) else "single"
-                # Баллы по умолчанию 1.0, если не указаны
                 try:
                     max_score = (
                         float(question_scores[idx])
@@ -382,7 +384,7 @@ def edit_assignment(id):
         db.session.commit()
         cache.clear()
 
-        # Аннулирование решений для потерявших доступ
+        # Аннулирование потерявших доступ
         if assignment.group_id:
             group = Group.query.get(assignment.group_id)
             subs = Submission.query.filter_by(assignment_id=assignment.id).all()
