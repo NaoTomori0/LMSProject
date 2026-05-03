@@ -403,7 +403,13 @@ def edit_assignment(id):
 
         return redirect(url_for("admin.index"))
 
-    questions = assignment.quiz_questions.order_by(QuizQuestion.order).all()
+    from sqlalchemy.orm import joinedload
+
+    questions = (
+        assignment.quiz_questions.order_by(QuizQuestion.order)
+        .options(joinedload(QuizQuestion.options))
+        .all()
+    )
 
     return render_template(
         "admin/edit_assignment.html",
