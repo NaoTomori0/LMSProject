@@ -95,6 +95,7 @@
             <div class="options-container-{{ q_idx }} mb-2">
               {% for option in question.options %}
               <div class="input-group mb-1">
+                <input type="hidden" name="option_id_{{ q_idx }}[]" value="{{ option.id }}">
                 <input type="text" class="form-control" name="option_text_{{ q_idx }}[]" value="{{ option.option_text }}" placeholder="Текст варианта">
                 <div class="input-group-text">
                   {% if question.question_type == 'single' %}

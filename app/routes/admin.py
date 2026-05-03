@@ -324,6 +324,102 @@ def edit_assignment(id):
 
         # ==================== Обработка тестов (обновление) ====================
         if assignment.check_type == "quiz":
+            # Получаем существующие вопросы
+            existing_questions = {
+                q.id: q
+                for q in QuizQuestion.query.filter_by(assignment_id=assignment.id).all()
+            }
+            processed_question_ids = set()
+
+            question_texts = request.form.getlist("question_text")
+            question_types = request.form.getlist("question_type")
+            question_scores = request.form.getlist("question_score")
+
+            for idx, q_text in enumerate(question_texts):
+                if not q_text.strip():
+                    continue
+                q_id = request.form.get(f"question_id_{idx}", 0, type=int)
+                q_type = question_types[idx] if idx < len(question_types) else "single"
+                try:
+                    max_score = (
+                        float(question_scores[idx])
+                        if idx < len(question_scores)
+                        else 1.0
+                    )
+                except (ValueError, IndexError):
+                    max_score = 1.0
+
+                if q_id > 0 and q_id in existing_questions:
+                    question = existing_questions[q_id]
+                    question.question_text = q_text.strip()
+                    question.question_type = q_type
+                    question.max_score = max_score
+                    question.order = idx
+                else:
+                    question = QuizQuestion(
+                        assignment_id=assignment.id,
+                        question_text=q_text.strip(),
+                        question_type=q_type,
+                        order=idx,
+                        max_score=max_score,
+                    )
+                    db.session.add(question)
+                    db.session.flush()
+
+                processed_question_ids.add(question.id)
+
+                # Работа с вариантами
+                # Получаем переданные ID вариантов (существующих или 0 для новых)
+                option_ids = request.form.getlist(f"option_id_{idx}[]")
+                opt_texts = request.form.getlist(f"option_text_{idx}[]")
+                if q_type == "single":
+                    correct_value = request.form.get(f"option_correct_{idx}")
+                    correct_option_ids = [int(correct_value)] if correct_value else []
+                else:
+                    correct_option_ids = [
+                        int(x) for x in request.form.getlist(f"option_correct_{idx}[]")
+                    ]
+
+                # Существующие варианты этого вопроса
+                existing_options = {
+                    opt.id: opt
+                    for opt in QuizOption.query.filter_by(question_id=question.id).all()
+                }
+                processed_option_ids = set()
+
+                for opt_idx in range(len(option_ids)):
+                    opt_id = (
+                        int(option_ids[opt_idx]) if opt_idx < len(option_ids) else 0
+                    )
+                    opt_text = opt_texts[opt_idx] if opt_idx < len(opt_texts) else ""
+                    if not opt_text.strip():
+                        continue
+
+                    if opt_id > 0 and opt_id in existing_options:
+                        option = existing_options[opt_id]
+                        option.option_text = opt_text.strip()
+                        option.is_correct = opt_id in correct_option_ids
+                    else:
+                        option = QuizOption(
+                            question_id=question.id,
+                            option_text=opt_text.strip(),
+                            is_correct=(
+                                opt_id in correct_option_ids if opt_id > 0 else False
+                            ),
+                        )
+                        db.session.add(option)
+                        db.session.flush()
+                    processed_option_ids.add(option.id)
+
+                # Удаляем варианты, которых больше нет в форме
+                for opt_id, opt in existing_options.items():
+                    if opt_id not in processed_option_ids:
+                        db.session.delete(opt)
+
+            # Удаляем вопросы, которых нет в форме
+            for q_id, q in existing_questions.items():
+                if q_id not in processed_question_ids:
+                    db.session.delete(q)
             # Загружаем существующие вопросы
             existing_questions = {
                 q.id: q
