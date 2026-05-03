@@ -170,6 +170,7 @@ class QuizQuestion(db.Model):
         db.Integer, db.ForeignKey("assignment.id"), nullable=False
     )
     question_text = db.Column(db.Text, nullable=False)
+    max_score = db.Column(db.Float, default=1.0, nullable=False)
     question_type = db.Column(
         db.String(20), default="single"
     )  # single / multiple / open

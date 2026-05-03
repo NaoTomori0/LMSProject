@@ -117,7 +117,7 @@ def submit_assignment(assignment_id):
         flash("Срок сдачи задания истёк.", "danger")
         return redirect(url_for("main.index"))
 
-    # Проверка попыток
+    # Проверка попыток (только для авторизованных)
     if assignment.max_attempts > 0 and current_user.is_authenticated:
         attempt_count = Submission.query.filter_by(
             assignment_id=assignment.id, user_id=current_user.id
@@ -146,8 +146,20 @@ def submit_assignment(assignment_id):
             answer_text=answer_text,
             language=language,
         )
+        # Присваиваем user_id сразу, независимо от типа задания
+        if current_user.is_authenticated:
+            submission.user_id = current_user.id
+        else:
+            guest_name = request.form.get("guest_name", "").strip()
+            guest_email = request.form.get("guest_email", "").strip()
+            if not guest_name or not guest_email:
+                flash("Для гостей обязательно укажите имя и email", "danger")
+                return render_template("submit.html", assignment=assignment)
+            submission.guest_name = guest_name
+            submission.guest_email = guest_email
+
         db.session.add(submission)
-        db.session.flush()  # чтобы получить submission.id
+        db.session.flush()  # получаем submission.id
 
         # Обработка тестовых ответов
         if assignment.check_type == "quiz":
@@ -170,7 +182,7 @@ def submit_assignment(assignment_id):
                 db.session.add(answer)
 
             db.session.flush()
-            grade_quiz(submission)  # сразу оцениваем
+            grade_quiz(submission)  # оценка (учитывает вес вопроса)
             db.session.commit()
             cache.clear()
             flash(
@@ -179,17 +191,6 @@ def submit_assignment(assignment_id):
             return redirect(url_for("main.index"))
 
         # Если не тест, продолжаем заполнение
-        if current_user.is_authenticated:
-            submission.user_id = current_user.id
-        else:
-            guest_name = request.form.get("guest_name", "").strip()
-            guest_email = request.form.get("guest_email", "").strip()
-            if not guest_name or not guest_email:
-                flash("Для гостей обязательно укажите имя и email", "danger")
-                return render_template("submit.html", assignment=assignment)
-            submission.guest_name = guest_name
-            submission.guest_email = guest_email
-
         # Сохранение файлов
         uploaded_filenames = []
         for f in files:
