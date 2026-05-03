@@ -108,7 +108,7 @@ def google_login():
     return oauth.google.authorize_redirect(redirect_uri)
 
 
-@bp.route("/auth/google/callback")
+@bp.route("/google/callback")
 def google_auth():
     token = oauth.google.authorize_access_token()
     user_info = token.get("userinfo")
@@ -137,7 +137,7 @@ def github_login():
     return oauth.github.authorize_redirect(redirect_uri)
 
 
-@bp.route("/auth/github/callback")
+@bp.route("/github/callback")
 def github_auth():
     token = oauth.github.authorize_access_token()
     resp = oauth.github.get("user")
