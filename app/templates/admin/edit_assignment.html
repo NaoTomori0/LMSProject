@@ -58,10 +58,9 @@
     </div>
     <div class="row mb-3">
       <div class="col-md-6">
-        <label for="deadline" class="form-label">Дедлайн (локальное время)</label>
-        <input type="datetime-local" class="form-control" id="deadline" name="deadline"
-               value="{{ assignment.deadline.strftime('%Y-%m-%dT%H:%M') if assignment.deadline else '' }}">
-        <div class="form-text">Оставьте пустым, если без ограничения. Хранится в UTC.</div>
+        <label for="deadline" class="form-label">Дедлайн (дата)</label>
+        <input type="date" class="form-control" id="deadline" name="deadline" value="{{ assignment.deadline.strftime('%Y-%m-%d') if assignment.deadline else '' }}">
+        <div class="form-text">Оставьте пустым, если без ограничения.</div>
       </div>
       <div class="col-md-6">
         <label for="max_attempts" class="form-label">Максимум попыток</label>
@@ -124,40 +123,6 @@
 {% block scripts %}
 {{ super() }}
 <script>
-  // ---------- Вспомогательные функции для дедлайна ----------
-  function getUTCOffsetMinutes() {
-    var match = document.cookie.match(/(?:^|;\s*)timezone_offset=([^;]*)/);
-    return match ? parseInt(match[1]) : -(new Date().getTimezoneOffset());
-  }
-
-  // Показать дедлайн в локальном времени
-  (function showLocalDeadline() {
-    var input = document.getElementById('deadline');
-    if (!input.value) return;
-    var utcDate = new Date(input.value + 'Z');
-    if (isNaN(utcDate.getTime())) return;
-    var offsetMinutes = getUTCOffsetMinutes();
-    // Правильно: local = utc + offset
-    var localDate = new Date(utcDate.getTime() + offsetMinutes * 60000);
-    var year = localDate.getFullYear();
-    var month = String(localDate.getMonth() + 1).padStart(2, '0');
-    var day = String(localDate.getDate()).padStart(2, '0');
-    var hours = String(localDate.getHours()).padStart(2, '0');
-    var minutes = String(localDate.getMinutes()).padStart(2, '0');
-    input.value = year + '-' + month + '-' + day + 'T' + hours + ':' + minutes;
-})();
-
-  // Перед отправкой переводим локальное время в UTC
-  document.getElementById('assignment-form').addEventListener('submit', function() {
-    var input = document.getElementById('deadline');
-    if (!input.value) return;
-    var localDate = new Date(input.value);
-    if (isNaN(localDate.getTime())) return;
-    var offsetMinutes = getUTCOffsetMinutes();
-    var utcDate = new Date(localDate.getTime() - offsetMinutes * 60000); // ← исправлено
-    input.value = utcDate.toISOString().slice(0, 16);
-});
-
   // ---------- Переключение блоков ----------
   var checkType = document.getElementById('check_type');
   var autoDiv = document.getElementById('auto-script');
@@ -202,7 +167,6 @@
     });
   }
 
-  // Привязываем обработчики к существующим вопросам
   document.querySelectorAll('#questions-container .card').forEach(function(card) {
     updateOptionInputs(card);
     var typeSelect = card.querySelector('select[name="question_type"]');
