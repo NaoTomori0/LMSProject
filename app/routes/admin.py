@@ -87,8 +87,20 @@ def edit_script(id):
         script.language = request.form.get("language", "python")
         script.script_body = request.form.get("script_body", "").strip()
         db.session.commit()
-        cache.clear()  # очистка кеша
-        flash("Скрипт обновлён", "success")
+        cache.clear()
+
+        affected_assignments = AssignmentScript.query.filter_by(
+            test_script_id=script.id
+        ).all()
+        assignment_ids = list(set([a.assignment_id for a in affected_assignments]))
+
+        for assignment_id in assignment_ids:
+            recheck_all_task.delay(assignment_id, current_app.config["UPLOAD_FOLDER"])
+
+        flash(
+            f"Скрипт обновлён. Запущена полная перепроверка для {len(assignment_ids)} заданий.",
+            "success",
+        )
         return redirect(url_for("admin.list_scripts"))
     return render_template("admin/script_form.html", script=script)
 
