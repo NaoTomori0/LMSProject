@@ -9,6 +9,7 @@ from flask import (
     send_from_directory,
     current_app,
 )
+from main import grade_quiz
 from flask_login import login_required, current_user
 from functools import wraps
 from app import db, create_app, cache
@@ -26,7 +27,7 @@ from app.models import (
 )
 from datetime import datetime, timedelta
 import os
-from app.tasks import recheck_all_task
+from app.tasks import recheck_all_task, recheck_all_quiz_task
 from app.utils import run_check_docker
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -396,6 +397,9 @@ def edit_assignment(id):
         if assignment.check_type == "auto":
             recheck_all_task.delay(assignment.id, current_app.config["UPLOAD_FOLDER"])
             flash("Задание обновлено. Запущена полная перепроверка.", "success")
+        elif assignment.check_type == "quiz":
+            recheck_all_quiz_task.delay(assignment.id)
+            flash("Задание обновлено. Запущена перепроверка всех ответов.", "success")
         else:
             flash("Задание обновлено.", "success")
 
@@ -523,6 +527,46 @@ def run_auto_check(id):
     db.session.commit()
     cache.clear()
     flash(f"Проверено {count} решений", "success")
+    return redirect(url_for("admin.index"))
+
+
+@bp.route("/assignment/<int:id>/run-quiz-check")
+@login_required
+@admin_required
+def run_quiz_check(id):
+    assignment = Assignment.query.get_or_404(id)
+    if assignment.check_type != "quiz":
+        flash("Это задание не является тестом", "warning")
+        return redirect(url_for("admin.index"))
+
+    pending_subs = Submission.query.filter_by(
+        assignment_id=assignment.id, status="pending"
+    ).all()
+    if not pending_subs:
+        flash("Нет неоценённых решений", "info")
+        return redirect(url_for("admin.index"))
+
+    count = 0
+    for sub in pending_subs:
+        grade_quiz(sub)
+        count += 1
+    db.session.commit()
+    cache.clear()
+    flash(f"Оценено {count} решений", "success")
+    return redirect(url_for("admin.index"))
+
+
+@bp.route("/assignment/<int:id>/recheck-all-quiz")
+@login_required
+@admin_required
+def recheck_all_quiz(id):
+    assignment = Assignment.query.get_or_404(id)
+    if assignment.check_type != "quiz":
+        flash("Это задание не является тестом", "warning")
+        return redirect(url_for("admin.index"))
+
+    recheck_all_quiz_task.delay(assignment.id)
+    flash("Перепроверка всех ответов запущена в фоне.", "info")
     return redirect(url_for("admin.index"))
 
 

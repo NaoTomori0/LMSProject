@@ -42,6 +42,9 @@
                         {% if a.check_type == 'auto' %}
                         <a href="{{ url_for('admin.run_auto_check', id=a.id) }}" class="btn btn-sm btn-info">Автопроверка</a>
                         <a href="{{ url_for('admin.recheck_all', id=a.id) }}" class="btn btn-sm btn-warning">Перепроверить все</a>
+                        {% elif a.check_type == 'quiz' %}
+                        <a href="{{ url_for('admin.run_quiz_check', id=a.id) }}" class="btn btn-sm btn-info">Оценить непроверенные</a>
+                        <a href="{{ url_for('admin.recheck_all_quiz', id=a.id) }}" class="btn btn-sm btn-warning">Переоценить все</a>
                         {% endif %}
                     </td>
                 </tr>

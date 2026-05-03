@@ -1,6 +1,10 @@
 import os
+from . import db
 from .celery_app import celery
 from .utils import run_check_docker
+from . import create_app
+from .models import Submission, QuizAnswer
+from routes.main import grade_quiz
 
 
 @celery.task(bind=True, max_retries=3, default_retry_delay=60)
@@ -92,5 +96,25 @@ def recheck_all_task(assignment_id, upload_folder):
                 count += 1
             except Exception:
                 pass
+        db.session.commit()
+        return {"status": "done", "checked": count}
+
+
+@celery.task
+def recheck_all_quiz_task(assignment_id):
+    """Полная перепроверка всех решений тестового задания."""
+    app = create_app()
+    with app.app_context():
+        from .models import Assignment  # чтобы избежать циклического импорта
+
+        assignment = Assignment.query.get(assignment_id)
+        if not assignment or assignment.check_type != "quiz":
+            return {"status": "error", "msg": "Not a quiz assignment"}
+
+        submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
+        count = 0
+        for sub in submissions:
+            grade_quiz(sub)
+            count += 1
         db.session.commit()
         return {"status": "done", "checked": count}
