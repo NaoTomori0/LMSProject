@@ -1,4 +1,5 @@
-{% extends "base.html" %} {% block body %}
+{% extends "base.html" %}
+{% block body %}
 <div class="container" style="max-width: 800px">
     <h2>Решение по заданию «{{ submission.assignment.title }}»</h2>
     <div class="card mb-3">
@@ -16,36 +17,63 @@
                 {% endif %}
             </p>
             <p>
-                <strong>Баллы:</strong>
-                {{ submission.score if submission.score is not none else '-' }}
+                <strong>Баллы:</strong> {{ submission.score if submission.score is not none else '-' }}
             </p>
             <p>
-                <strong>Комментарий проверяющего:</strong>
-                {{ submission.feedback or 'Нет комментария' }}
+                <strong>Комментарий проверяющего:</strong> {{ submission.feedback or 'Нет комментария' }}
             </p>
             <p>
-                <strong>Язык решения:</strong>
-                {{ submission.language or 'не указан' }}
+                <strong>Язык решения:</strong> {{ submission.language or 'не указан' }}
             </p>
             <p>
-                <strong>Дата отправки:</strong>
-                {{ submission.created_at | localtime(utc_offset) }}
+                <strong>Дата отправки:</strong> {{ submission.created_at | localtime(utc_offset) }}
             </p>
         </div>
     </div>
+    <!-- ==================== БЛОК ОТВЕТОВ НА ТЕСТ ==================== -->
+    {% if submission.assignment.check_type == 'quiz' %}
+    <h5 class="mb-3">Ответы на тест</h5>
+    {% for answer in submission.quiz_answers|sort(attribute='question.order') %}
+    <div class="card mb-2">
+        <div class="card-body">
+            <p>
+                <strong>{{ answer.question.question_text }}</strong> ({{ answer.question.question_type }})
+            </p>
+            {% if answer.question.question_type == 'open' %}
+            <p>Ваш ответ: {{ answer.open_answer or 'Не дан' }}</p>
+            <p>Оценка: {{ answer.score if answer.score is not none else '—' }}</p>
+            {% else %}
+            <p>
+                Выбрано:
+              {% if answer.selected_options %}
+                {% for opt_id in answer.selected_options.split(',') %}
+                  {% for opt in answer.question.options %}
+                    {% if opt.id == opt_id|int %}{{ opt.option_text }}{% endif %}
+                  {% endfor %}
+                {% endfor %}
+              {% else %}
+                Ничего не выбрано
+              {% endif %}
+            </p>
+            <p>Балл: {{ answer.score if answer.score is not none else '0' }} из {{ answer.question.max_score }}</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <!-- ==================== БЛОК КОДА (для manual и auto) ==================== -->
     <div class="card">
         <div class="card-header">Ваше решение</div>
         <div>
             {% if submission.answer_text %}
             <div class="card-body">
-                <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit">
-                    {{ submission.answer_text }}
-                </pre
-        >
+                <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit">{{ submission.answer_text }}</pre>
             </div>
             {% else %}
             <p class="text-muted">Решение не содержит текста.</p>
-            {% endif %} {% if submission.answer_file %}
+            {% endif %}
+
+        {% if submission.answer_file %}
             <hr>
             <p>
                 <strong>Прикреплённые файлы:</strong>
@@ -55,14 +83,11 @@
                 <li>{{ file }}</li>
                 {% endfor %}
             </ul>
-            <p class="text-muted small">
-                Файлы доступны только для скачивания администратором.
-            </p>
+            <p class="text-muted small">Файлы доступны только для скачивания администратором.</p>
             {% endif %}
         </div>
     </div>
-    <a href="{{ url_for('cabinet.index') }}" class="btn btn-secondary mt-3">← Назад в кабинет
-    </a
-  >
+    {% endif %}
+    <a href="{{ url_for('cabinet.index') }}" class="btn btn-secondary mt-3">← Назад в кабинет</a>
 </div>
 {% endblock %}
