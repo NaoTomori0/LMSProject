@@ -84,7 +84,10 @@ def grade_quiz(submission):
 @bp.route("/")
 @cache.cached(timeout=60, unless=lambda: current_user.is_authenticated)
 def index():
-    if current_user.is_authenticated:
+    if current_user.is_authenticated and current_user.is_admin():
+        # Администратор видит все задания
+        assignments = Assignment.query.order_by(Assignment.created_at.desc()).all()
+    elif current_user.is_authenticated:
         user_group_ids = [g.id for g in current_user.groups]
         assignments = (
             Assignment.query.filter(
