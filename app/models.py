@@ -178,7 +178,7 @@ class QuizQuestion(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     options = db.relationship(
-        "QuizOption", backref="question", lazy="dynamic", cascade="all, delete-orphan"
+        "QuizOption", backref="question", lazy="select", cascade="all, delete-orphan"
     )
     assignment = db.relationship(
         "Assignment",

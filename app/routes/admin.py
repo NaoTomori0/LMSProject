@@ -401,11 +401,7 @@ def edit_assignment(id):
 
         return redirect(url_for("admin.index"))
 
-    questions = (
-        assignment.quiz_questions.order_by(QuizQuestion.order)
-        .options(db.joinedload(QuizQuestion.options))
-        .all()
-    )
+    questions = assignment.quiz_questions.order_by(QuizQuestion.order).all()
 
     return render_template(
         "admin/edit_assignment.html",
