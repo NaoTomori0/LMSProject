@@ -9,7 +9,7 @@ from flask import (
     send_from_directory,
     current_app,
 )
-from main import grade_quiz
+from .main import grade_quiz
 from flask_login import login_required, current_user
 from functools import wraps
 from app import db, create_app, cache
