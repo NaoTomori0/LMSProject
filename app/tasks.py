@@ -4,7 +4,7 @@ from .celery_app import celery
 from .utils import run_check_docker
 from . import create_app
 from .models import Submission, QuizAnswer
-from routes.main import grade_quiz
+from .routes.main import grade_quiz
 
 
 @celery.task(bind=True, max_retries=3, default_retry_delay=60)
