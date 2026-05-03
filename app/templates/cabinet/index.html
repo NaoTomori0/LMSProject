@@ -3,36 +3,44 @@
 <div class="container">
     <h1>Личный кабинет</h1>
     <!-- Статистика -->
-    <div class="row row-cols-2 row-cols-md-4 g-3 mb-4">
+    <div class="row row-cols-1 row-cols-md-5 g-3 mb-4">
         <div class="col">
-            <div class="card text-center border-primary h-100">
-                <div class="card-body d-flex flex-column justify-content-center">
-                    <h5 class="card-title text-primary mb-1">{{ stats.total_submissions }}</h5>
-                    <p class="card-text small text-nowrap">Попыток</p>
+            <div class="card text-center border-secondary">
+                <div class="card-body">
+                    <h5 class="card-title">{{ stats.unique_assignments }}</h5>
+                    <p class="card-text">Заданий решалось</p>
                 </div>
             </div>
         </div>
         <div class="col">
-            <div class="card text-center border-success h-100">
-                <div class="card-body d-flex flex-column justify-content-center">
-                    <h5 class="card-title text-success mb-1">{{ stats.total_passed }}</h5>
-                    <p class="card-text small text-nowrap">Зачтено</p>
+            <div class="card text-center border-success">
+                <div class="card-body">
+                    <h5 class="card-title text-success">{{ stats.passed_assignments }}</h5>
+                    <p class="card-text">Зачтено</p>
                 </div>
             </div>
         </div>
         <div class="col">
-            <div class="card text-center border-info h-100">
-                <div class="card-body d-flex flex-column justify-content-center">
-                    <h5 class="card-title text-info mb-1">{{ stats.success_percent }}%</h5>
-                    <p class="card-text small text-nowrap">Успешность</p>
+            <div class="card text-center border-primary">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">{{ stats.total_attempts }}</h5>
+                    <p class="card-text">Попыток</p>
                 </div>
             </div>
         </div>
         <div class="col">
-            <div class="card text-center border-warning h-100">
-                <div class="card-body d-flex flex-column justify-content-center">
-                    <h5 class="card-title text-warning mb-1">{{ stats.total_score }}</h5>
-                    <p class="card-text small text-nowrap">Общий балл</p>
+            <div class="card text-center border-info">
+                <div class="card-body">
+                    <h5 class="card-title text-info">{{ stats.success_percent }}%</h5>
+                    <p class="card-text">Успешность</p>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card text-center border-warning">
+                <div class="card-body">
+                    <h5 class="card-title text-warning">{{ stats.total_score }}</h5>
+                    <p class="card-text">Общий балл</p>
                 </div>
             </div>
         </div>
