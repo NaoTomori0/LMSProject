@@ -201,7 +201,7 @@
     <div id="quiz-section" style="display: none">
       <h5 class="mt-4">Вопросы теста</h5>
       <div id="questions-container">
-        {% for question in assignment.quiz_questions|sort(attribute='order') %}
+        {% for question in questions %}
         <div class="card mb-3">
           <div class="card-body">
             <div class="mb-2">
@@ -356,7 +356,7 @@
     return match ? parseInt(match[1]) : -(new Date().getTimezoneOffset());
   }
 
-  // При загрузке показываем дедлайн в локальном времени
+  // Показать дедлайн в локальном времени
   (function showLocalDeadline() {
     var input = document.getElementById('deadline');
     if (!input.value) return;
@@ -364,7 +364,6 @@
     if (isNaN(utcDate.getTime())) return;
     var offsetMinutes = getUTCOffsetMinutes();
     var localDate = new Date(utcDate.getTime() - offsetMinutes * 60000);
-    // Форматируем в YYYY-MM-DDTHH:MM
     var year = localDate.getFullYear();
     var month = String(localDate.getMonth() + 1).padStart(2, '0');
     var day = String(localDate.getDate()).padStart(2, '0');
@@ -373,7 +372,7 @@
     input.value = year + '-' + month + '-' + day + 'T' + hours + ':' + minutes;
   })();
 
-  // Перед отправкой переводим локальное время обратно в UTC
+  // Перед отправкой переводим локальное время в UTC
   document.getElementById('assignment-form').addEventListener('submit', function() {
     var input = document.getElementById('deadline');
     if (!input.value) return;
@@ -406,7 +405,7 @@
   window.addEventListener('DOMContentLoaded', toggleGroup);
 
   // ---------- Конструктор вопросов ----------
-  var questionIndex = {{ assignment.quiz_questions|length }};
+  var questionIndex = {{ questions|length }};
 
   function updateOptionInputs(card) {
     var typeSelect = card.querySelector('select[name="question_type"]');
