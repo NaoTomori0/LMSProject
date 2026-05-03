@@ -445,10 +445,12 @@ def edit_assignment(id):
             recheck_all_task.delay(assignment.id, current_app.config["UPLOAD_FOLDER"])
             flash("Задание обновлено. Запущена полная перепроверка.", "success")
         elif assignment.check_type == "quiz":
-            from app.tasks import recheck_all_quiz_task
 
-            recheck_all_quiz_task.delay(assignment.id)
-            flash("Задание обновлено. Запущена перепроверка всех ответов.", "success")
+            submissions = Submission.query.filter_by(assignment_id=assignment.id).all()
+            for sub in submissions:
+                grade_quiz(sub)
+            db.session.commit()
+            flash("Задание обновлено. Все ответы переоценены.", "success")
         else:
             flash("Задание обновлено.", "success")
 

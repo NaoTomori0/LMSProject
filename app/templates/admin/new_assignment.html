@@ -220,13 +220,13 @@
     const inputType = currentType === "single" ? "radio" : "checkbox";
     const inputName = "option_correct_" + qIdx + (inputType === "checkbox" ? "[]" : "");
 
-    div.innerHTML =
-  '<input type="hidden" name="option_id_' + qIdx + '[]" value="0">' +
-  '<input type="text" class="form-control" name="option_text_' + qIdx + '[]" placeholder="Текст варианта">' +
-  '<div class="input-group-text">' +
-    '<input type="' + inputType + '" name="' + name + '" value="' + optIdx + '">' +
-  '</div>' +
-  '<button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'.input-group\').remove()">×</button>';
+    div.innerHTML = `
+      <input type="text" class="form-control" name="option_text_${qIdx}[]" placeholder="Текст варианта">
+      <div class="input-group-text">
+        <input type="${inputType}" name="${inputName}" value="${optIdx}">
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.input-group').remove()">×</button>
+    `;
     container.appendChild(div);
   }
 </script>
