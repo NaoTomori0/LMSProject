@@ -156,7 +156,7 @@
       </div>
     </div>
 
-    <!-- Выбор группы (показывается при выборе "Только для группы") -->
+    <!-- Выбор группы -->
     <div id="group-select" class="mb-3" style="display: none">
       <label for="group_id" class="form-label">Группа</label>
       <select class="form-select" id="group_id" name="group_id">
@@ -412,7 +412,7 @@
     });
   }
 
-  // Применяем актуальные типы к существующим вопросам и вешаем обработчики
+  // Применяем актуальные типы к существующим вопросам
   document.querySelectorAll("#questions-container .card").forEach((card) => {
     updateOptionsForQuestion(card);
     const typeSelect = card.querySelector('select[name="question_type"]');
