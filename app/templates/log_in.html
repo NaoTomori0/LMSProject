@@ -1,6 +1,6 @@
 {% extends "base.html" %} {% block body %}
 <main class="form-signin w-100 m-auto" style="max-width: 380px; margin-top: 100px !important">
-    <form action="{{ url_for('auth.log_in') }}" method="POST">
+    <form action="{{ url_for('auth.log_in') }}" method="POST" novalidate>
         <h1 class="h3 mb-4 fw-normal text-center">Please log in</h1>
         <div class="form-floating mb-3">
             <input
