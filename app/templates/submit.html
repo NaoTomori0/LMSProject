@@ -77,8 +77,13 @@
                 </select>
             </div>
         </div>
-        <div class="mb-3">
-            <label for="editor" class="form-label">Ваше решение</label>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Текст решения</span>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="copySolution()">
+                📋 Копировать
+            </button>
+        </div>
+        <div class="card-body">
             <textarea id="editor" name="answer" style="height: 400px;"></textarea>
         </div>
         <input
