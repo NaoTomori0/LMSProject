@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+
 {% block body %}
 <div class="container" style="max-width: 700px;">
   <h2>Решение #{{ submission.id }}</h2>
@@ -64,9 +65,9 @@
       <div class="card-header">Текст решения</div>
       <div class="card-body">
         {% if submission.answer_text %}
-        <textarea id="submission-code" name="code_view" style="display: none;">{{ submission.answer_text }}</textarea>
+          <textarea id="submission-code" style="display: none;">{{ submission.answer_text }}</textarea>
         {% else %}
-        <pre style="white-space: pre-wrap; font-family: inherit; margin-bottom: 0;">{{'Без описания' }}</pre>
+          <pre style="white-space: pre-wrap; font-family: inherit; margin-bottom: 0;">Решение не содержит текста.</pre>
         {% endif %}
       </div>
     </div>
@@ -112,28 +113,55 @@
     <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">Назад</a>
   </form>
 </div>
-
 {% endblock %}
-{% block scripts %}
 
+{% block scripts %}
+{{ super() }}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var codeArea = document.getElementById('submission-code');
-        if (codeArea) {
-            var editor = CodeMirror.fromTextArea(codeArea, {
-                lineNumbers: true,
-                mode: '{{ submission.language }}',   // передайте язык из контекста (python, cpp, javascript)
-                theme: 'dracula',
-                readOnly: true,                      // главное — запрещаем редактирование
-                lineWrapping: true,                  // перенос длинных строк
-                indentUnit: 4,
-                matchBrackets: true,
-                styleActiveLine: false,
-                viewportMargin: Infinity
-            });
-            // Опционально: установить высоту по содержимому
-            editor.setSize(null, 'auto');
-        }
-    });
+  (function() {
+    // Функция для преобразования названия языка в режим CodeMirror
+    function getCodeMirrorMode(lang) {
+      if (!lang) return 'python';
+      switch (lang.toLowerCase()) {
+        case 'javascript': return 'javascript';
+        case 'cpp': return 'text/x-c++src';
+        case 'java': return 'text/x-java';
+        case 'bash': return 'shell';
+        default: return 'python';
+      }
+    }
+
+    function initEditor() {
+      var textarea = document.getElementById('submission-code');
+      if (!textarea) return;
+
+      // Предотвращаем повторную инициализацию (если редактор уже создан)
+      if (textarea.nextElementSibling && textarea.nextElementSibling.classList &&
+          textarea.nextElementSibling.classList.contains('CodeMirror')) {
+        return;
+      }
+
+      var modeName = '{{ submission.language | default("python") }}';
+      var mode = getCodeMirrorMode(modeName);
+
+      var editor = CodeMirror.fromTextArea(textarea, {
+        lineNumbers: true,
+        mode: mode,
+        theme: 'dracula',
+        readOnly: true,          // запрещаем редактирование
+        lineWrapping: true,      // перенос длинных строк
+        indentUnit: 4,
+        matchBrackets: true,
+        styleActiveLine: false,  // не нужно для readOnly
+        viewportMargin: Infinity // авто-высота по содержимому
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initEditor);
+    } else {
+      initEditor();
+    }
+  })();
 </script>
 {% endblock %}
