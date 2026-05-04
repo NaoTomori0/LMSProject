@@ -19,6 +19,7 @@
                 placeholder="Username"
                 required
             >
+            <div class="invalid-feedback"></div>
             <label for="username">Username</label>
         </div>
         <div class="form-floating mb-3">
@@ -30,6 +31,7 @@
                 placeholder="name@example.com"
                 required
             >
+            <div class="invalid-feedback"></div>
             <label for="email">Email address</label>
         </div>
         <div class="form-floating mb-3">
@@ -42,6 +44,8 @@
                 required
             >
             <label for="password-field">Password</label>
+            <div class="invalid-feedback"></div>
+            <div id="password-error" class="text-danger small mt-1" style="display: none;"></div>
         </div>
         <button class="btn btn-primary w-100 py-2 mb-3" type="submit">
             Sign up

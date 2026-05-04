@@ -1,32 +1,71 @@
 document.addEventListener('DOMContentLoaded', () => {
     const signInForm = document.querySelector('form');
+    const usernameInput = document.getElementById('username');
+    const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password-field');
-    const errorDiv = document.getElementById('password-error');
 
-    if (signInForm && passwordInput) {
-        signInForm.addEventListener('submit', (event) => {
-            const finalPattern = /^[a-zA-Z0-9!@#$%^&*()_+=\-\[\]{}|;':",./<>?`~\\ ]{8,20}$/;
+    if (!signInForm || !passwordInput) return;
 
-            if (!finalPattern.test(passwordInput.value)) {
-                event.preventDefault();
-                passwordInput.classList.add('is-invalid');
+    signInForm.addEventListener('submit', (event) => {
+        let isValid = true;
 
-                if (errorDiv) {
-                    const len = passwordInput.value.length;
-                    if (len < 8 || len > 20) {
-                        errorDiv.textContent = 'Длина пароля должна быть от 8 до 20 символов.';
-                    } else {
-                        errorDiv.textContent = 'Разрешена только латиница, цифры и спецсимволы.';
-                    }
-                    errorDiv.style.display = 'block';
-                }
-                passwordInput.focus();
+        // Проверка имени пользователя (если поле есть)
+        if (usernameInput) {
+            const username = usernameInput.value.trim();
+            if (username.length < 3 || username.length > 30) {
+                isValid = false;
+                usernameInput.classList.add('is-invalid');
+                const err = usernameInput.parentNode.querySelector('.invalid-feedback');
+                if (err) err.textContent = 'Имя должно быть от 3 до 30 символов.';
+            } else {
+                usernameInput.classList.remove('is-invalid');
             }
-        });
+        }
 
-        passwordInput.addEventListener('input', () => {
+        // Проверка email
+        if (emailInput) {
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailPattern.test(emailInput.value.trim())) {
+                isValid = false;
+                emailInput.classList.add('is-invalid');
+                const err = emailInput.parentNode.querySelector('.invalid-feedback');
+                if (err) err.textContent = 'Введите корректный email.';
+            } else {
+                emailInput.classList.remove('is-invalid');
+            }
+        }
+
+        // Проверка пароля
+        const finalPattern = /^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{}|;':",./<>?`~\\ ]{8,20}$/;
+        if (!finalPattern.test(passwordInput.value)) {
+            isValid = false;
+            passwordInput.classList.add('is-invalid');
+            const err = passwordInput.parentNode.querySelector('.invalid-feedback');
+            if (err) {
+                const len = passwordInput.value.length;
+                if (len < 8 || len > 20) {
+                    err.textContent = 'Длина пароля должна быть от 8 до 20 символов.';
+                } else {
+                    err.textContent = 'Разрешена только латиница, цифры и спецсимволы.';
+                }
+            }
+        } else {
             passwordInput.classList.remove('is-invalid');
-            if (errorDiv) errorDiv.style.display = 'none';
+        }
+
+        if (!isValid) {
+            event.preventDefault();
+            // Фокусируем первое поле с ошибкой
+            const firstInvalid = document.querySelector('.is-invalid');
+            if (firstInvalid) firstInvalid.focus();
+        }
+    });
+
+    // Снятие подсветки при вводе
+    [usernameInput, emailInput, passwordInput].forEach(input => {
+        if (!input) return;
+        input.addEventListener('input', () => {
+            input.classList.remove('is-invalid');
         });
-    }
+    });
 });
