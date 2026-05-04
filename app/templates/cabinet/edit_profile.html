@@ -18,4 +18,8 @@
         <a href="{{ url_for('cabinet.index') }}" class="btn btn-secondary">Отмена</a>
     </form>
 </div>
+{% block scripts %}
+{{ super() }}
+<script src="/static/js/sign-in.js"></script>
+{% endblock %}
 {% endblock %}
