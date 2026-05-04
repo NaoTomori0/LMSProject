@@ -2,8 +2,8 @@ function copySolution() {
   const codeArea = document.getElementById("submission-code");
   if (!codeArea) return;
 
+  // Получаем текст либо из CodeMirror (если он уже инициализирован), либо из textarea
   let textToCopy = "";
-  // Проверяем, инициализирован ли CodeMirror
   if (
     codeArea.nextElementSibling &&
     codeArea.nextElementSibling.classList.contains("CodeMirror")
@@ -17,18 +17,20 @@ function copySolution() {
   navigator.clipboard
     .writeText(textToCopy)
     .then(() => {
+      // Показываем краткое уведомление
       const btn = document.querySelector(".btn-outline-primary");
-      if (!btn) return;
+      const originalHTML = btn.innerHTML;
       btn.innerHTML = "✅ Скопировано";
       btn.classList.remove("btn-outline-primary");
       btn.classList.add("btn-success");
       setTimeout(() => {
-        btn.innerHTML = "📋 Копировать";
+        btn.innerHTML = originalHTML;
         btn.classList.remove("btn-success");
         btn.classList.add("btn-outline-primary");
       }, 2000);
     })
     .catch((err) => {
+      // Fallback для старых браузеров
       const tempTextarea = document.createElement("textarea");
       tempTextarea.value = textToCopy;
       document.body.appendChild(tempTextarea);
@@ -39,54 +41,21 @@ function copySolution() {
     });
 }
 
-(function () {
-  function getCodeMirrorMode(lang) {
-    if (!lang) return "python";
-    switch (lang.toLowerCase()) {
-      case "javascript":
-        return "javascript";
-      case "cpp":
-        return "text/x-c++src";
-      case "java":
-        return "text/x-java";
-      case "bash":
-        return "shell";
-      default:
-        return "python";
-    }
-  }
-
-  document.addEventListener("DOMContentLoaded", function () {
-    const textarea = document.getElementById("submission-code");
-    if (!textarea) return;
-
-    // Защита от повторной инициализации
-    if (
-      textarea.nextElementSibling &&
-      textarea.nextElementSibling.classList.contains("CodeMirror")
-    ) {
-      return;
-    }
-
-    const lang = textarea.getAttribute("data-language") || "python";
-    const mode = getCodeMirrorMode(lang);
-
-    const editor = CodeMirror.fromTextArea(textarea, {
+document.addEventListener("DOMContentLoaded", function () {
+  var codeArea = document.getElementById("submission-code");
+  if (codeArea) {
+    var editor = CodeMirror.fromTextArea(codeArea, {
       lineNumbers: true,
-      mode: mode,
+      mode: "{{ submission.language }}", // передайте язык из контекста (python, cpp, javascript)
       theme: "dracula",
-      readOnly: true,
-      lineWrapping: true,
+      readOnly: true, // главное — запрещаем редактирование
+      lineWrapping: true, // перенос длинных строк
       indentUnit: 4,
       matchBrackets: true,
-      styleActiveLine: false,
+      styleActiveLine: false, // для readOnly можно отключить
       viewportMargin: Infinity,
     });
-
-    // Авто‑высота
-    setTimeout(function () {
-      editor.refresh();
-      editor.setSize(null, editor.getScrollInfo().height);
-    }, 10);
-  });
-})();
+    // Опционально: установить высоту по содержимому
+    editor.setSize(null, "auto");
+  }
+});

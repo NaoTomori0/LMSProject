@@ -2,6 +2,13 @@
 {% block body %}
 <div class="container" style="max-width: 800px">
     <h2>Решение по заданию «{{ submission.assignment.title }}»</h2>
+    <!-- Текст задания -->
+    <div class="card mb-3">
+        <div class="card-header">Текст задания</div>
+        <div class="card-body">
+            <pre class="card-text" style="white-space: pre-wrap;">{{ submission.assignment.description or 'Без описания' }}</pre>
+        </div>
+    </div>
     <div class="card mb-3">
         <div class="card-body">
             <p>
@@ -24,24 +31,16 @@
                 <strong>Комментарий проверяющего:</strong>
                 {{ submission.feedback or 'Нет комментария' }}
             </p>
+            {% if submission.assignment.check_type != 'quiz' %}
             <p>
-                {% if submission.assignment.check_type != 'quiz' %}
-                <p>
-                    <strong>Язык решения:</strong>
-                    {{ submission.language or 'не указан' }}
-                </p>
-                {% endif %}
+                <strong>Язык решения:</strong>
+                {{ submission.language or 'не указан' }}
             </p>
+            {% endif %}
             <p>
                 <strong>Дата отправки:</strong>
                 {{ submission.created_at | localtime(utc_offset) }}
             </p>
-        </div>
-    </div>
-    <div class="card mb-3">
-        <div class="card-header">Текст задания</div>
-        <div class="card-body">
-            <pre class="card-text" style="white-space: pre-wrap;">{{ submission.assignment.description or 'Без описания'  }}</pre>
         </div>
     </div>
     <!-- ==================== БЛОК ОТВЕТОВ НА ТЕСТ ==================== -->
@@ -60,15 +59,15 @@
             {% else %}
             <p>
                 Выбрано:
-              {% if answer.selected_options %}
-                {% for opt_id in answer.selected_options.split(',') %}
-                  {% for opt in answer.question.options %}
-                    {% if opt.id == opt_id|int %}{{ opt.option_text }}{% endif %}
-                  {% endfor %}
-                {% endfor %}
-              {% else %}
-                Ничего не выбрано
-              {% endif %}
+        {% if answer.selected_options %}
+          {% for opt_id in answer.selected_options.split(',') %}
+            {% for opt in answer.question.options %}
+              {% if opt.id == opt_id|int %}{{ opt.option_text }}{% endif %}
+            {% endfor %}
+          {% endfor %}
+        {% else %}
+          Ничего не выбрано
+        {% endif %}
             </p>
             <p>Балл: {{ answer.score if answer.score is not none else '0' }} из {{ answer.question.max_score }}</p>
             {% endif %}
@@ -77,40 +76,124 @@
     {% endfor %}
   {% else %}
     <!-- ==================== БЛОК КОДА (для manual и auto) ==================== -->
-    <div class="card">
+    <div class="card mb-3">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <span>Текст решения</span>
-            <button type="button" class="btn btn-sm btn-outline-primary" onclick="copySolution()">
-                📋 Копировать
-            </button>
+            <span>Ваше решение</span>
+            <button type="button" class="btn btn-outline-primary btn-sm btn-copy">📋 Копировать</button>
         </div>
-        <div>
+        <div class="card-body">
             {% if submission.answer_text %}
-            <div class="card-body">
-                <textarea id="submission-code" data-language="{{ submission.language or 'python' }}">{{ submission.answer_text }}</textarea>
-            </div>
+            <textarea id="submission-code" style="display: none;">{{ submission.answer_text }}</textarea>
             {% else %}
             <p class="text-muted">Решение не содержит текста.</p>
             {% endif %}
-
-        {% if submission.answer_file %}
-            <hr>
-            <p>
-                <strong>Прикреплённые файлы:</strong>
-            </p>
-            <ul>
-                {% for file in submission.answer_file.split(',') %}
-                <li>{{ file }}</li>
-                {% endfor %}
-            </ul>
-            <p class="text-muted small">Файлы доступны только для скачивания администратором.</p>
-            {% endif %}
         </div>
     </div>
+    {% if submission.answer_file %}
+    <h5 class="mt-3">Прикреплённые файлы</h5>
+    <ul>
+        {% for file in submission.answer_file.split(',') %}
+        <li>{{ file }}</li>
+        {% endfor %}
+    </ul>
+    <p class="text-muted small">Файлы доступны только для скачивания администратором.</p>
     {% endif %}
+  {% endif %}
     <a href="{{ url_for('cabinet.index') }}" class="btn btn-secondary mt-3">← Назад в кабинет</a>
 </div>
 {% endblock %}
+
 {% block scripts %}
-<script src="/static/js/cabinet/submission_detail.js"></script>
+{{ super() }}
+<style>
+  .CodeMirror {
+    height: auto !important;
+  }
+  .CodeMirror-scroll {
+    position: relative !important;
+    overflow-y: hidden !important;
+    overflow-x: auto !important;
+  }
+</style>
+<script>
+  (function() {
+    // ---------- Копирование кода ----------
+    function copySolution() {
+      const textarea = document.getElementById("submission-code");
+      if (!textarea) return;
+      let textToCopy = "";
+      if (textarea.nextElementSibling && textarea.nextElementSibling.classList.contains("CodeMirror")) {
+        textToCopy = textarea.nextElementSibling.CodeMirror.getValue();
+      } else {
+        textToCopy = textarea.value || textarea.textContent || "";
+      }
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        const btn = document.querySelector(".btn-copy");
+        if (btn) {
+          btn.innerHTML = "✅ Скопировано";
+          btn.classList.replace("btn-outline-primary", "btn-success");
+          setTimeout(() => {
+            btn.innerHTML = "📋 Копировать";
+            btn.classList.replace("btn-success", "btn-outline-primary");
+          }, 2000);
+        }
+      }).catch(() => {
+        const temp = document.createElement("textarea");
+        temp.value = textToCopy;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand("copy");
+        document.body.removeChild(temp);
+        alert("Код скопирован");
+      });
+    }
+
+    // ---------- Инициализация CodeMirror ----------
+    function getMode(lang) {
+      if (!lang) return "python";
+      switch (lang.toLowerCase()) {
+        case "javascript": return "javascript";
+        case "cpp": return "text/x-c++src";
+        case "java": return "text/x-java";
+        case "bash": return "shell";
+        default: return "python";
+      }
+    }
+
+    function initEditor() {
+      const textarea = document.getElementById("submission-code");
+      if (!textarea) return;
+      if (textarea.nextElementSibling && textarea.nextElementSibling.classList.contains("CodeMirror")) return;
+
+      const modeName = "{{ submission.language }}" || "python";
+      const editor = CodeMirror.fromTextArea(textarea, {
+        lineNumbers: true,
+        mode: getMode(modeName),
+        theme: "dracula",
+        readOnly: true,
+        lineWrapping: true,
+        indentUnit: 4,
+        matchBrackets: true,
+        styleActiveLine: false,
+        viewportMargin: Infinity
+      });
+
+      setTimeout(() => {
+        editor.refresh();
+        const scrollInfo = editor.getScrollInfo();
+        if (scrollInfo && scrollInfo.height) editor.setSize(null, scrollInfo.height);
+      }, 10);
+
+      // Кнопка копирования
+      const btn = document.querySelector(".btn-copy");
+      if (btn) btn.addEventListener("click", copySolution);
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initEditor);
+    } else {
+      initEditor();
+    }
+  })();
+</script>
 {% endblock %}
