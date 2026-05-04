@@ -155,8 +155,10 @@
                 "Ctrl-Space": function(cm) {
                     cm.showHint({ hint: getHint(cm), completeSingle: false });
                 }
-            }
+            },
+            viewportMargin: Infinity
         });
+        editor.setSize(null, 'auto');   
 
         // Автоматический показ подсказок при вводе букв, цифр, подчёркивания и точки
         editor.on('inputRead', function(cm, change) {
