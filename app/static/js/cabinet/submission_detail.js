@@ -1,8 +1,12 @@
+// /static/js/submission-detail.js
+
 (function () {
-  // ---------- Копирование кода ----------
+  // ---------- Копирование кода решения ----------
   function copySolution() {
     const textarea = document.getElementById("submission-code");
     if (!textarea) return;
+
+    // Получаем текст: если CodeMirror уже инициализирован — из редактора, иначе из textarea
     let textToCopy = "";
     if (
       textarea.nextElementSibling &&
@@ -12,6 +16,7 @@
     } else {
       textToCopy = textarea.value || textarea.textContent || "";
     }
+
     navigator.clipboard
       .writeText(textToCopy)
       .then(() => {
@@ -56,16 +61,26 @@
   function initEditor() {
     const textarea = document.getElementById("submission-code");
     if (!textarea) return;
+
+    // Защита от повторной инициализации
     if (
       textarea.nextElementSibling &&
       textarea.nextElementSibling.classList.contains("CodeMirror")
     )
       return;
 
-    const modeName = "{{ submission.language }}" || "python";
+    // Получаем язык из data-атрибута родительского элемента или из глобальной переменной
+    const container = document.getElementById("submission-container");
+    const modeName =
+      (container && container.dataset.language) ||
+      (typeof submissionLanguage !== "undefined"
+        ? submissionLanguage
+        : "python");
+    const mode = getMode(modeName);
+
     const editor = CodeMirror.fromTextArea(textarea, {
       lineNumbers: true,
-      mode: getMode(modeName),
+      mode: mode,
       theme: "dracula",
       readOnly: true,
       lineWrapping: true,
@@ -75,21 +90,29 @@
       viewportMargin: Infinity,
     });
 
+    // Подгоняем высоту под содержимое
     setTimeout(() => {
       editor.refresh();
       const scrollInfo = editor.getScrollInfo();
       if (scrollInfo && scrollInfo.height)
         editor.setSize(null, scrollInfo.height);
     }, 10);
+  }
 
-    // Кнопка копирования
+  // Вешаем обработчик копирования при загрузке
+  function bindCopyButton() {
     const btn = document.querySelector(".btn-copy");
     if (btn) btn.addEventListener("click", copySolution);
   }
 
+  // Запуск после загрузки DOM
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initEditor);
+    document.addEventListener("DOMContentLoaded", () => {
+      initEditor();
+      bindCopyButton();
+    });
   } else {
     initEditor();
+    bindCopyButton();
   }
 })();

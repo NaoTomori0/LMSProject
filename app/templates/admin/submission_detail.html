@@ -68,7 +68,7 @@
           📋 Копировать
         </button>
       </div>
-      <div class="card-body">
+      <div class="card-body" id="submission-container" data-language="{{ submission.language | default('python') }}">
         {% if submission.answer_text %}
           <textarea id="submission-code" style="display: none;">{{ submission.answer_text }}</textarea>
         {% else %}
