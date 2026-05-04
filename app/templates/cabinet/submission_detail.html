@@ -99,6 +99,7 @@
     {% endif %}
     <a href="{{ url_for('cabinet.index') }}" class="btn btn-secondary mt-3">← Назад в кабинет</a>
 </div>
+{% endblock %}
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -119,5 +120,4 @@
         }
     });
 </script>
-{% endblock %}
 {% endblock %}
