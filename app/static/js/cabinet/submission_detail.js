@@ -1,118 +1,61 @@
-// /static/js/submission-detail.js
+function copySolution() {
+  const codeArea = document.getElementById("submission-code");
+  if (!codeArea) return;
 
-(function () {
-  // ---------- Копирование кода решения ----------
-  function copySolution() {
-    const textarea = document.getElementById("submission-code");
-    if (!textarea) return;
-
-    // Получаем текст: если CodeMirror уже инициализирован — из редактора, иначе из textarea
-    let textToCopy = "";
-    if (
-      textarea.nextElementSibling &&
-      textarea.nextElementSibling.classList.contains("CodeMirror")
-    ) {
-      textToCopy = textarea.nextElementSibling.CodeMirror.getValue();
-    } else {
-      textToCopy = textarea.value || textarea.textContent || "";
-    }
-
-    navigator.clipboard
-      .writeText(textToCopy)
-      .then(() => {
-        const btn = document.querySelector(".btn-copy");
-        if (btn) {
-          btn.innerHTML = "✅ Скопировано";
-          btn.classList.replace("btn-outline-primary", "btn-success");
-          setTimeout(() => {
-            btn.innerHTML = "📋 Копировать";
-            btn.classList.replace("btn-success", "btn-outline-primary");
-          }, 2000);
-        }
-      })
-      .catch(() => {
-        const temp = document.createElement("textarea");
-        temp.value = textToCopy;
-        document.body.appendChild(temp);
-        temp.select();
-        document.execCommand("copy");
-        document.body.removeChild(temp);
-        alert("Код скопирован");
-      });
+  // Получаем текст либо из CodeMirror (если он уже инициализирован), либо из textarea
+  let textToCopy = "";
+  if (
+    codeArea.nextElementSibling &&
+    codeArea.nextElementSibling.classList.contains("CodeMirror")
+  ) {
+    const cm = codeArea.nextElementSibling.CodeMirror;
+    textToCopy = cm.getValue();
+  } else {
+    textToCopy = codeArea.value || codeArea.textContent || "";
   }
 
-  // ---------- Инициализация CodeMirror ----------
-  function getMode(lang) {
-    if (!lang) return "python";
-    switch (lang.toLowerCase()) {
-      case "javascript":
-        return "javascript";
-      case "cpp":
-        return "text/x-c++src";
-      case "java":
-        return "text/x-java";
-      case "bash":
-        return "shell";
-      default:
-        return "python";
-    }
-  }
+  navigator.clipboard
+    .writeText(textToCopy)
+    .then(() => {
+      // Показываем краткое уведомление
+      const btn = document.querySelector(".btn-outline-primary");
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = "✅ Скопировано";
+      btn.classList.remove("btn-outline-primary");
+      btn.classList.add("btn-success");
+      setTimeout(() => {
+        btn.innerHTML = originalHTML;
+        btn.classList.remove("btn-success");
+        btn.classList.add("btn-outline-primary");
+      }, 2000);
+    })
+    .catch((err) => {
+      // Fallback для старых браузеров
+      const tempTextarea = document.createElement("textarea");
+      tempTextarea.value = textToCopy;
+      document.body.appendChild(tempTextarea);
+      tempTextarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(tempTextarea);
+      alert("Код скопирован в буфер обмена");
+    });
+}
 
-  function initEditor() {
-    const textarea = document.getElementById("submission-code");
-    if (!textarea) return;
-
-    // Защита от повторной инициализации
-    if (
-      textarea.nextElementSibling &&
-      textarea.nextElementSibling.classList.contains("CodeMirror")
-    )
-      return;
-
-    // Получаем язык из data-атрибута родительского элемента или из глобальной переменной
-    const container = document.getElementById("submission-container");
-    const modeName =
-      (container && container.dataset.language) ||
-      (typeof submissionLanguage !== "undefined"
-        ? submissionLanguage
-        : "python");
-    const mode = getMode(modeName);
-
-    const editor = CodeMirror.fromTextArea(textarea, {
+document.addEventListener("DOMContentLoaded", function () {
+  var codeArea = document.getElementById("submission-code");
+  if (codeArea) {
+    var editor = CodeMirror.fromTextArea(codeArea, {
       lineNumbers: true,
-      mode: mode,
+      mode: "{{ submission.language }}", // передайте язык из контекста (python, cpp, javascript)
       theme: "dracula",
-      readOnly: true,
-      lineWrapping: true,
+      readOnly: true, // главное — запрещаем редактирование
+      lineWrapping: true, // перенос длинных строк
       indentUnit: 4,
       matchBrackets: true,
-      styleActiveLine: false,
+      styleActiveLine: false, // для readOnly можно отключить
       viewportMargin: Infinity,
     });
-
-    // Подгоняем высоту под содержимое
-    setTimeout(() => {
-      editor.refresh();
-      const scrollInfo = editor.getScrollInfo();
-      if (scrollInfo && scrollInfo.height)
-        editor.setSize(null, scrollInfo.height);
-    }, 10);
+    // Опционально: установить высоту по содержимому
+    editor.setSize(null, "auto");
   }
-
-  // Вешаем обработчик копирования при загрузке
-  function bindCopyButton() {
-    const btn = document.querySelector(".btn-copy");
-    if (btn) btn.addEventListener("click", copySolution);
-  }
-
-  // Запуск после загрузки DOM
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      initEditor();
-      bindCopyButton();
-    });
-  } else {
-    initEditor();
-    bindCopyButton();
-  }
-})();
+});
