@@ -27,7 +27,8 @@
             <p>
                 {% if submission.assignment.check_type != 'quiz' %}
                 <p>
-                    <strong>Язык решения:</strong> {{ submission.language or 'не указан' }}
+                    <strong>Язык решения:</strong>
+                    {{ submission.language or 'не указан' }}
                 </p>
                 {% endif %}
             </p>
@@ -75,7 +76,7 @@
         <div>
             {% if submission.answer_text %}
             <div class="card-body">
-                <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit">{{ submission.answer_text }}</pre>
+                <textarea id="submission-code" name="code_view" style="display: none;">{{ submission.answer_text }}</textarea>
             </div>
             {% else %}
             <p class="text-muted">Решение не содержит текста.</p>
@@ -98,4 +99,26 @@
     {% endif %}
     <a href="{{ url_for('cabinet.index') }}" class="btn btn-secondary mt-3">← Назад в кабинет</a>
 </div>
+{% block scripts %}
+{{ super() }}  {# если в родительском шаблоне уже есть скрипты #}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var codeArea = document.getElementById('submission-code');
+        if (codeArea) {
+            var editor = CodeMirror.fromTextArea(codeArea, {
+                lineNumbers: true,
+                mode: '{{ submission.language }}',   // передайте язык из контекста (python, cpp, javascript)
+                theme: 'dracula',
+                readOnly: true,                      // главное — запрещаем редактирование
+                lineWrapping: true,                  // перенос длинных строк
+                indentUnit: 4,
+                matchBrackets: true,
+                styleActiveLine: false               // для readOnly можно отключить
+            });
+            // Опционально: установить высоту по содержимому
+            editor.setSize(null, 'auto');
+        }
+    });
+</script>
+{% endblock %}
 {% endblock %}

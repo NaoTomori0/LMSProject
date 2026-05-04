@@ -63,7 +63,11 @@
     <div class="card mb-3">
       <div class="card-header">Текст решения</div>
       <div class="card-body">
-        <pre style="white-space: pre-wrap; font-family: inherit; margin-bottom: 0;">{{ submission.answer_text or 'Без описания' }}</pre>
+        {% if submission.answer_text %}
+        <textarea id="submission-code" name="code_view" style="display: none;">{{ submission.answer_text }}</textarea>
+        {% else %}
+        <pre style="white-space: pre-wrap; font-family: inherit; margin-bottom: 0;">{{'Без описания' }}</pre>
+        {% endif %}
       </div>
     </div>
 
@@ -108,4 +112,26 @@
     <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">Назад</a>
   </form>
 </div>
+{% block scripts %}
+{{ super() }}  {# если в родительском шаблоне уже есть скрипты #}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var codeArea = document.getElementById('submission-code');
+        if (codeArea) {
+            var editor = CodeMirror.fromTextArea(codeArea, {
+                lineNumbers: true,
+                mode: '{{ submission.language }}',   // передайте язык из контекста (python, cpp, javascript)
+                theme: 'dracula',
+                readOnly: true,                      // главное — запрещаем редактирование
+                lineWrapping: true,                  // перенос длинных строк
+                indentUnit: 4,
+                matchBrackets: true,
+                styleActiveLine: false               // для readOnly можно отключить
+            });
+            // Опционально: установить высоту по содержимому
+            editor.setSize(null, 'auto');
+        }
+    });
+</script>
+{% endblock %}
 {% endblock %}
