@@ -11,7 +11,7 @@
     </div>
     <div class="mb-3">
       <label for="description" class="form-label">Описание</label>
-      <textarea class="form-control" id="description" name="description" rows="2">{{ script.description if script else '' }}</textarea>
+      <textarea class="form-control auto-resize" id="description" name="description" rows="2">{{ script.description if script else '' }}</textarea>
     </div>
     <div class="mb-3">
       <label for="language" class="form-label">Язык</label>
@@ -39,116 +39,142 @@
 
 {% block scripts %}
 {{ super() }}
+<style>
+  /* Плавное изменение высоты для обычных textarea */
+  .auto-resize {
+    overflow-y: hidden;
+    transition: height 0.1s ease;
+  }
+  /* Принудительная авто-высота для CodeMirror */
+  .CodeMirror {
+    height: auto !important;
+  }
+  .CodeMirror-scroll {
+    overflow-y: hidden !important;
+  }
+</style>
 <script>
-  (function() {
-    // Функция для получения режима подсветки по выбранному языку
-    function getModeFromLanguage(lang) {
-      switch (lang) {
-        case 'javascript': return 'javascript';
-        case 'cpp': return 'text/x-c++src';
-        case 'java': return 'text/x-java';
-        case 'bash': return 'shell';
-        default: return 'python';
-      }
+  // 1. Авто-высота для обычных textarea с классом auto-resize
+  function autoResizeTextarea(textarea) {
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    textarea.style.height = (textarea.scrollHeight + 2) + 'px';
+  }
+
+  function initAutoResize() {
+    const textareas = document.querySelectorAll('textarea.auto-resize');
+    textareas.forEach(textarea => {
+      autoResizeTextarea(textarea);
+      textarea.addEventListener('input', function() { autoResizeTextarea(this); });
+    });
+  }
+
+  // 2. CodeMirror редактор (взят из вашего кода с небольшими правками для авто-высоты)
+  function getModeFromLanguage(lang) {
+    switch (lang) {
+      case 'javascript': return 'javascript';
+      case 'cpp': return 'text/x-c++src';
+      case 'java': return 'text/x-java';
+      case 'bash': return 'shell';
+      default: return 'python';
     }
+  }
 
-    // Функция подсказок: для Python комбинируем ключевые слова + слова из документа
-    const pythonKeywords = [
-      'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await', 'break', 'class',
-      'continue', 'def', 'del', 'elif', 'else', 'except', 'finally', 'for', 'from', 'global',
-      'if', 'import', 'in', 'is', 'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return',
-      'try', 'while', 'with', 'yield', 'print', 'len', 'range', 'str', 'int', 'float', 'list',
-      'dict', 'set', 'tuple', 'open', 'input', 'abs', 'round', 'sum', 'min', 'max'
-    ];
+  const pythonKeywords = [
+    'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await', 'break', 'class',
+    'continue', 'def', 'del', 'elif', 'else', 'except', 'finally', 'for', 'from', 'global',
+    'if', 'import', 'in', 'is', 'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return',
+    'try', 'while', 'with', 'yield', 'print', 'len', 'range', 'str', 'int', 'float', 'list',
+    'dict', 'set', 'tuple', 'open', 'input', 'abs', 'round', 'sum', 'min', 'max'
+  ];
 
-    function customHint(cm) {
-      const cur = cm.getCursor();
-      const token = cm.getTokenAt(cur);
-      let start = token.start, end = token.end;
-      const word = token.string;
-      const mode = cm.getOption('mode');
-      let list = [];
+  function customHint(cm) {
+    const cur = cm.getCursor();
+    const token = cm.getTokenAt(cur);
+    let start = token.start, end = token.end;
+    const word = token.string;
+    const mode = cm.getOption('mode');
+    let list = [];
 
-      if (mode === 'python') {
-        // Собираем слова из документа
-        const docWords = {};
-        cm.eachLine(line => {
-          const words = line.text.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g);
-          if (words) words.forEach(w => { docWords[w] = true; });
-        });
-        const docList = Object.keys(docWords);
-        // Объединяем со статическими ключевыми словами и убираем дубликаты
-        const combined = [...new Set([...pythonKeywords, ...docList])];
-        list = combined.filter(item => item.startsWith(word));
-      } else if (mode === 'javascript') {
-        // Используем встроенный подсказчик JavaScript (ключевые слова, глобальные объекты)
-        const jsHint = CodeMirror.hint.javascript(cm);
-        if (jsHint) list = jsHint.list;
-      } else {
-        // Для остальных языков – любые слова из документа
-        const anyHint = CodeMirror.hint.anyword(cm);
-        if (anyHint) list = anyHint.list;
-      }
-
-      return {
-        list: list,
-        from: CodeMirror.Pos(cur.line, start),
-        to: CodeMirror.Pos(cur.line, end)
-      };
-    }
-
-    function initEditor() {
-      const textarea = document.getElementById('script_body');
-      if (!textarea) return;
-
-      // Предотвращаем повторную инициализацию
-      if (textarea.nextElementSibling && textarea.nextElementSibling.classList &&
-          textarea.nextElementSibling.classList.contains('CodeMirror')) {
-        return;
-      }
-
-      const initialLang = document.getElementById('language').value;
-      const initialMode = getModeFromLanguage(initialLang);
-
-      const editor = CodeMirror.fromTextArea(textarea, {
-        lineNumbers: true,
-        mode: initialMode,
-        theme: 'dracula',
-        indentUnit: 4,
-        matchBrackets: true,
-        autoCloseBrackets: true,
-        styleActiveLine: true,
-        lineWrapping: true,
-        viewportMargin: Infinity,   // авто-высота по содержимому
-        extraKeys: {
-          "Ctrl-Space": function(cm) {
-            cm.showHint({ hint: customHint, completeSingle: false });
-          }
-        }
+    if (mode === 'python') {
+      const docWords = {};
+      cm.eachLine(line => {
+        const words = line.text.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g);
+        if (words) words.forEach(w => { docWords[w] = true; });
       });
-      
-      editor.setSize(null, 'auto');
-      
-      // Автоподсказки при вводе букв/цифр/подчёркивания
-      editor.on('inputRead', function(cm, change) {
-        if (change.text.length === 1 && /[a-zA-Z0-9_]$/.test(change.text[0])) {
+      const docList = Object.keys(docWords);
+      const combined = [...new Set([...pythonKeywords, ...docList])];
+      list = combined.filter(item => item.startsWith(word));
+    } else if (mode === 'javascript') {
+      const jsHint = CodeMirror.hint.javascript(cm);
+      if (jsHint) list = jsHint.list;
+    } else {
+      const anyHint = CodeMirror.hint.anyword(cm);
+      if (anyHint) list = anyHint.list;
+    }
+
+    return {
+      list: list,
+      from: CodeMirror.Pos(cur.line, start),
+      to: CodeMirror.Pos(cur.line, end)
+    };
+  }
+
+  function initCodeMirror() {
+    const textarea = document.getElementById('script_body');
+    if (!textarea) return;
+
+    // Защита от повторного создания
+    if (textarea.nextElementSibling && textarea.nextElementSibling.classList &&
+        textarea.nextElementSibling.classList.contains('CodeMirror')) {
+      return;
+    }
+
+    const initialLang = document.getElementById('language').value;
+    const initialMode = getModeFromLanguage(initialLang);
+
+    const editor = CodeMirror.fromTextArea(textarea, {
+      lineNumbers: true,
+      mode: initialMode,
+      theme: 'dracula',
+      indentUnit: 4,
+      matchBrackets: true,
+      autoCloseBrackets: true,
+      styleActiveLine: true,
+      lineWrapping: true,
+      viewportMargin: Infinity,
+      extraKeys: {
+        "Ctrl-Space": function(cm) {
           cm.showHint({ hint: customHint, completeSingle: false });
         }
-      });
+      }
+    });
 
-      // Смена языка – обновляем режим редактора
-      const langSelect = document.getElementById('language');
-      langSelect.addEventListener('change', function() {
-        const newMode = getModeFromLanguage(this.value);
-        editor.setOption('mode', newMode);
-      });
-    }
+    // Подстройка высоты после рендеринга
+    setTimeout(() => editor.refresh(), 10);
 
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initEditor);
-    } else {
-      initEditor();
-    }
-  })();
+    editor.on('inputRead', function(cm, change) {
+      if (change.text.length === 1 && /[a-zA-Z0-9_]$/.test(change.text[0])) {
+        cm.showHint({ hint: customHint, completeSingle: false });
+      }
+    });
+
+    const langSelect = document.getElementById('language');
+    langSelect.addEventListener('change', function() {
+      const newMode = getModeFromLanguage(this.value);
+      editor.setOption('mode', newMode);
+    });
+  }
+
+  // Запуск всех инициализаций
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      initAutoResize();
+      initCodeMirror();
+    });
+  } else {
+    initAutoResize();
+    initCodeMirror();
+  }
 </script>
 {% endblock %}
