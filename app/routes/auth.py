@@ -29,7 +29,6 @@ def admin_login(token):
     return redirect(url_for("admin.index"))
 
 
-# ---------- Регистрация ----------
 @bp.route("/sign_in", methods=["GET", "POST"])
 def sign_in():
     if current_user.is_authenticated:
@@ -40,13 +39,29 @@ def sign_in():
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
 
+        errors = {}
+        # Проверки
+        if not username or len(username) < 3 or len(username) > 30:
+            errors["username_error"] = "Имя должно быть от 3 до 30 символов."
+        if not email or "@" not in email:
+            errors["email_error"] = "Введите корректный email."
         if User.query.filter_by(email=email).first():
-            flash("Email уже используется", "danger")
-            return render_template("sign_in.html", year=datetime.now().year)
+            errors["email_error"] = "Email уже используется."
         if User.query.filter_by(username=username).first():
-            flash("Имя пользователя занято", "danger")
-            return render_template("sign_in.html", year=datetime.now().year)
+            errors["username_error"] = "Имя пользователя занято."
+        if not password or len(password) < 8 or len(password) > 20:
+            errors["password_error"] = "Пароль должен быть от 8 до 20 символов."
 
+        if errors:
+            return render_template(
+                "sign_in.html",
+                username_value=username,
+                email_value=email,
+                **errors,
+                year=datetime.now().year,
+            )
+
+        # Создаём пользователя
         user = User(username=username, email=email, role="user", email_verified=False)
         user.set_password(password)
         code = generate_verification_code()
@@ -54,7 +69,6 @@ def sign_in():
         db.session.add(user)
         db.session.commit()
 
-        print(f"===== Verification code for {email}: {code} =====")
         session["pending_verification_email"] = email
         flash("На ваш email отправлен код подтверждения. Введите его ниже.", "info")
         return redirect(url_for("auth.verify_email"))
@@ -62,7 +76,6 @@ def sign_in():
     return render_template("sign_in.html", year=datetime.now().year)
 
 
-# ---------- Вход ----------
 @bp.route("/log_in", methods=["GET", "POST"])
 def log_in():
     if current_user.is_authenticated:
@@ -71,24 +84,31 @@ def log_in():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
+
         user = User.query.filter_by(email=email).first()
+        if not user or not user.check_password(password):
+            # Ошибка – показываем и для email, и для пароля
+            return render_template(
+                "log_in.html",
+                email_value=email,
+                email_error="Неверный email или пароль.",
+                password_error="Неверный email или пароль.",
+                year=datetime.now().year,
+            )
 
-        if user and user.check_password(password):
-            if not user.email_verified:
-                code = generate_verification_code()
-                user.verification_code = code
-                db.session.commit()
-                session["pending_verification_email"] = user.email
-                send_verification_email(user)
-                flash("Ваш email не подтверждён. Новый код отправлен.", "warning")
-                return redirect(url_for("auth.verify_email"))
+        if not user.email_verified:
+            code = generate_verification_code()
+            user.verification_code = code
+            db.session.commit()
+            session["pending_verification_email"] = user.email
+            send_verification_email(user)
+            flash("Ваш email не подтверждён. Новый код отправлен.", "warning")
+            return redirect(url_for("auth.verify_email"))
 
-            login_user(user)
-            flash("Вы вошли в систему", "success")
-            next_page = request.args.get("next")
-            return redirect(next_page or url_for("main.index"))
-        else:
-            flash("Неверный email или пароль", "danger")
+        login_user(user)
+        flash("Вы вошли в систему", "success")
+        next_page = request.args.get("next")
+        return redirect(next_page or url_for("main.index"))
 
     return render_template("log_in.html", year=datetime.now().year)
 
