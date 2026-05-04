@@ -114,12 +114,21 @@
   </form>
 </div>
 {% endblock %}
-
 {% block scripts %}
 {{ super() }}
+<style>
+    /* Принудительно убираем фиксированную высоту CodeMirror */
+    .CodeMirror {
+        height: auto !important;
+    }
+    .CodeMirror-scroll {
+        position: relative !important;
+        overflow-y: hidden !important;
+        overflow-x: auto !important;
+    }
+</style>
 <script>
   (function() {
-    // Функция для преобразования названия языка в режим CodeMirror
     function getCodeMirrorMode(lang) {
       if (!lang) return 'python';
       switch (lang.toLowerCase()) {
@@ -135,7 +144,7 @@
       var textarea = document.getElementById('submission-code');
       if (!textarea) return;
 
-      // Предотвращаем повторную инициализацию (если редактор уже создан)
+      // Защита от повторной инициализации
       if (textarea.nextElementSibling && textarea.nextElementSibling.classList &&
           textarea.nextElementSibling.classList.contains('CodeMirror')) {
         return;
@@ -148,13 +157,22 @@
         lineNumbers: true,
         mode: mode,
         theme: 'dracula',
-        readOnly: true,          // запрещаем редактирование
-        lineWrapping: true,      // перенос длинных строк
+        readOnly: true,
+        lineWrapping: true,
         indentUnit: 4,
         matchBrackets: true,
-        styleActiveLine: false,  // не нужно для readOnly
-        viewportMargin: Infinity // авто-высота по содержимому
+        styleActiveLine: false,
+        viewportMargin: Infinity
       });
+
+      // Принудительный пересчёт высоты после рендеринга
+      setTimeout(function() {
+        editor.refresh();
+        var scrollInfo = editor.getScrollInfo();
+        if (scrollInfo && scrollInfo.height) {
+          editor.setSize(null, scrollInfo.height);
+        }
+      }, 10);
     }
 
     if (document.readyState === 'loading') {
