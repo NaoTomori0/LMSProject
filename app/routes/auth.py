@@ -39,8 +39,8 @@ def sign_in():
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
 
-        errors = {}
-        # Проверки
+        errors = {"username_error": "", "email_error": "", "password_error": ""}
+
         if not username or len(username) < 3 or len(username) > 30:
             errors["username_error"] = "Имя должно быть от 3 до 30 символов."
         if not email or "@" not in email:
@@ -52,7 +52,7 @@ def sign_in():
         if not password or len(password) < 8 or len(password) > 20:
             errors["password_error"] = "Пароль должен быть от 8 до 20 символов."
 
-        if errors:
+        if any(errors.values()):
             return render_template(
                 "sign_in.html",
                 username_value=username,
@@ -87,7 +87,6 @@ def log_in():
 
         user = User.query.filter_by(email=email).first()
         if not user or not user.check_password(password):
-            # Ошибка – показываем и для email, и для пароля
             return render_template(
                 "log_in.html",
                 email_value=email,
