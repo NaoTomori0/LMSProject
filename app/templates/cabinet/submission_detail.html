@@ -38,6 +38,12 @@
             </p>
         </div>
     </div>
+    <div class="card mb-3">
+        <div class="card-header">Текст задания</div>
+        <div class="card-body">
+            <pre class="card-text" style="white-space: pre-wrap;">{{ assignment.description or 'Без описания' }}</pre>
+        </div>
+    </div>
     <!-- ==================== БЛОК ОТВЕТОВ НА ТЕСТ ==================== -->
     {% if submission.assignment.check_type == 'quiz' %}
     <h5 class="mb-3">Ответы на тест</h5>
