@@ -87,7 +87,7 @@
         <div>
             {% if submission.answer_text %}
             <div class="card-body">
-                <textarea id="submission-code" name="code_view" style="display: none;">{{ submission.answer_text }}</textarea>
+                <textarea id="submission-code" data-language="{{ submission.language or 'python' }}">{{ submission.answer_text }}</textarea>
             </div>
             {% else %}
             <p class="text-muted">Решение не содержит текста.</p>
