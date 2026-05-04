@@ -15,13 +15,18 @@
             integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
             crossorigin="anonymous"
         >
-        <!-- CodeMirror 5 CDN (простой и надёжный) -->
+        <!-- CodeMirror 5 + аддоны для автодополнения -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/dracula.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/hint/show-hint.min.css">
         <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/python/python.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/javascript/javascript.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/clike/clike.min.js"></script>
+        <!-- Аддоны автодополнения -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/hint/show-hint.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/hint/anyword-hint.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/hint/javascript-hint.min.js"></script>
         {% block head %}{% endblock head %}
     </head>
     <body hx-boost="true">
@@ -69,8 +74,7 @@
         </nav>
         <!-- Основной контент + flash-сообщения -->
         <main class="container">
-            {% with messages = get_flashed_messages(with_categories=true) %} {% if
-      messages %} {% for category, message in messages %}
+            {% with messages = get_flashed_messages(with_categories=true) %} {% if messages %} {% for category, message in messages %}
             <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
                 {{ message }}
                 <button
@@ -80,7 +84,8 @@
                     aria-label="Close"
                 ></button>
             </div>
-            {% endfor %} {% endif %} {% endwith %} {% block body %}{% endblock body %}
+            {% endfor %} {% endif %} {% endwith %} 
+            {% block body %}{% endblock body %}
         </main>
         <!-- Футер -->
         <footer class="text-center text-muted py-4 mt-4 border-top">
@@ -163,17 +168,12 @@
         <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.min.js" integrity="sha384-G/EV+4j2dNv+tEPo3++6LCgdCROaejBqfUeNjuKAiuXbjrxilcCdDz6ZAVfHWe1Y" crossorigin="anonymous"></script>
         <script>
-      (function () {
-        if (
-          !document.cookie
-            .split("; ")
-            .find((row) => row.startsWith("timezone_offset="))
-        ) {
-          var offset = -new Date().getTimezoneOffset();
-          document.cookie =
-            "timezone_offset=" + offset + ";path=/;max-age=31536000";
-        }
-      })();
+            (function () {
+                if (!document.cookie.split("; ").find(row => row.startsWith("timezone_offset="))) {
+                    var offset = -new Date().getTimezoneOffset();
+                    document.cookie = "timezone_offset=" + offset + ";path=/;max-age=31536000";
+                }
+            })();
         </script>
         <script src="/static/js/theme-init.js"></script>
         {% block scripts %}{% endblock scripts %}

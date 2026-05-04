@@ -13,7 +13,7 @@
         ⏰ Дедлайн: {{ assignment.deadline.strftime('%d.%m.%Y %H:%M') }}
     </div>
     {% endif %}
-  {% if assignment.max_attempts > 0 %}
+    {% if assignment.max_attempts > 0 %}
     <div class="alert alert-info">
         🔄 Максимум попыток: {{ assignment.max_attempts }}
     </div>
@@ -28,7 +28,7 @@
                     <strong>{{ loop.index }}. {{ question.question_text }}</strong>
                 </p>
                 {% if question.question_type == 'single' %}
-                {% for option in question.options|sort(attribute='id') %}
+                    {% for option in question.options|sort(attribute='id') %}
                 <div class="form-check">
                     <input
                         class="form-check-input"
@@ -40,8 +40,8 @@
                     <label class="form-check-label" for="opt_{{ option.id }}">{{ option.option_text }}</label>
                 </div>
                 {% endfor %}
-            {% elif question.question_type == 'multiple' %}
-                {% for option in question.options|sort(attribute='id') %}
+                {% elif question.question_type == 'multiple' %}
+                    {% for option in question.options|sort(attribute='id') %}
                 <div class="form-check">
                     <input
                         class="form-check-input"
@@ -53,7 +53,7 @@
                     <label class="form-check-label" for="opt_{{ option.id }}">{{ option.option_text }}</label>
                 </div>
                 {% endfor %}
-            {% else %}
+                {% else %}
                 <textarea
                     class="form-control"
                     name="q_{{ question.id }}"
@@ -64,8 +64,7 @@
             </div>
         </div>
         {% endfor %}
-
-    {% else %}
+        {% else %}
         <!-- ======== РЕДАКТОР КОДА ======== -->
         <div class="row mb-3">
             <div class="col-md-4">
@@ -101,7 +100,7 @@
         </div>
         {% endif %}
 
-    {% if not current_user.is_authenticated %}
+        {% if not current_user.is_authenticated %}
         <h5 class="mb-3">Ваши данные</h5>
         <div class="mb-3">
             <label for="guest_name" class="form-label">Имя</label>
@@ -133,29 +132,54 @@
 {% block scripts %}
 {% if assignment.check_type != 'quiz' %}
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    var editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
-      lineNumbers: true,
-      mode: 'python',
-      theme: 'dracula',
-      indentUnit: 4,
-      matchBrackets: true,
-      autoCloseBrackets: true,
-      styleActiveLine: true
+    document.addEventListener('DOMContentLoaded', function() {
+        // Функция выбора подсказчика в зависимости от режима
+        function getHint(cm) {
+            const mode = cm.getOption('mode');
+            if (mode === 'javascript') {
+                return CodeMirror.hint.javascript;   // для JS – встроенный (ключевые слова, глобальные объекты)
+            } else {
+                return CodeMirror.hint.anyword;       // для Python/C++/Java – любые слова из документа
+            }
+        }
+
+        var editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+            lineNumbers: true,
+            mode: 'python',
+            theme: 'dracula',
+            indentUnit: 4,
+            matchBrackets: true,
+            autoCloseBrackets: true,
+            styleActiveLine: true,
+            extraKeys: {
+                "Ctrl-Space": function(cm) {
+                    cm.showHint({ hint: getHint(cm), completeSingle: false });
+                }
+            }
+        });
+
+        // Автоматический показ подсказок при вводе букв, цифр, подчёркивания и точки
+        editor.on('inputRead', function(cm, change) {
+            if (change.text.length === 1 && /[a-zA-Z0-9_.]$/.test(change.text[0])) {
+                cm.showHint({ hint: getHint(cm), completeSingle: false });
+            }
+        });
+
+        var langSelect = document.getElementById('language-select');
+        var hiddenLang = document.getElementById('selected-language');
+
+        langSelect.addEventListener('change', function() {
+            var val = this.value;
+            hiddenLang.value = val;
+            var mode = 'python';
+            if (val === 'javascript') mode = 'javascript';
+            else if (val === 'cpp') mode = 'text/x-c++src';
+            else if (val === 'java') mode = 'text/x-java';
+            editor.setOption('mode', mode);
+        });
+
+        hiddenLang.value = langSelect.value;
     });
-    var langSelect = document.getElementById('language-select');
-    var hiddenLang = document.getElementById('selected-language');
-    langSelect.addEventListener('change', function() {
-      var val = this.value;
-      hiddenLang.value = val;
-      var mode = 'python';
-      if (val === 'javascript') mode = 'javascript';
-      else if (val === 'cpp') mode = 'text/x-c++src';
-      else if (val === 'java') mode = 'text/x-java';
-      editor.setOption('mode', mode);
-    });
-    hiddenLang.value = langSelect.value;
-  });
 </script>
 {% endif %}
 {% endblock %}
