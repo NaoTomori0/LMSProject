@@ -1,48 +1,45 @@
-function copySolution() {
-  const codeArea = document.getElementById("submission-code");
-  if (!codeArea) return;
+(function () {
+  // ---------- Копирование кода решения ----------
+  function copySolution() {
+    const textarea = document.getElementById("submission-code");
+    if (!textarea) return;
 
-  // Получаем текст либо из CodeMirror (если он уже инициализирован), либо из textarea
-  let textToCopy = "";
-  if (
-    codeArea.nextElementSibling &&
-    codeArea.nextElementSibling.classList.contains("CodeMirror")
-  ) {
-    const cm = codeArea.nextElementSibling.CodeMirror;
-    textToCopy = cm.getValue();
-  } else {
-    textToCopy = codeArea.value || codeArea.textContent || "";
+    let textToCopy = "";
+    if (
+      textarea.nextElementSibling &&
+      textarea.nextElementSibling.classList.contains("CodeMirror")
+    ) {
+      textToCopy = textarea.nextElementSibling.CodeMirror.getValue();
+    } else {
+      textToCopy = textarea.value || textarea.textContent || "";
+    }
+
+    navigator.clipboard
+      .writeText(textToCopy)
+      .then(() => {
+        const btn = document.querySelector(".btn-copy");
+        if (btn) {
+          btn.innerHTML = "✅ Скопировано";
+          btn.classList.replace("btn-outline-primary", "btn-success");
+          setTimeout(() => {
+            btn.innerHTML = "📋 Копировать";
+            btn.classList.replace("btn-success", "btn-outline-primary");
+          }, 2000);
+        }
+      })
+      .catch(() => {
+        const temp = document.createElement("textarea");
+        temp.value = textToCopy;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand("copy");
+        document.body.removeChild(temp);
+        alert("Код скопирован");
+      });
   }
 
-  navigator.clipboard
-    .writeText(textToCopy)
-    .then(() => {
-      // Показываем краткое уведомление
-      const btn = document.querySelector(".btn-outline-primary");
-      const originalHTML = btn.innerHTML;
-      btn.innerHTML = "✅ Скопировано";
-      btn.classList.remove("btn-outline-primary");
-      btn.classList.add("btn-success");
-      setTimeout(() => {
-        btn.innerHTML = originalHTML;
-        btn.classList.remove("btn-success");
-        btn.classList.add("btn-outline-primary");
-      }, 2000);
-    })
-    .catch((err) => {
-      // Fallback для старых браузеров
-      const tempTextarea = document.createElement("textarea");
-      tempTextarea.value = textToCopy;
-      document.body.appendChild(tempTextarea);
-      tempTextarea.select();
-      document.execCommand("copy");
-      document.body.removeChild(tempTextarea);
-      alert("Код скопирован в буфер обмена");
-    });
-}
-
-(function () {
-  function getCodeMirrorMode(lang) {
+  // ---------- Инициализация CodeMirror ----------
+  function getMode(lang) {
     if (!lang) return "python";
     switch (lang.toLowerCase()) {
       case "javascript":
@@ -59,22 +56,24 @@ function copySolution() {
   }
 
   function initEditor() {
-    var textarea = document.getElementById("submission-code");
+    const textarea = document.getElementById("submission-code");
     if (!textarea) return;
 
-    // Защита от повторной инициализации
     if (
       textarea.nextElementSibling &&
-      textarea.nextElementSibling.classList &&
       textarea.nextElementSibling.classList.contains("CodeMirror")
-    ) {
+    )
       return;
-    }
 
-    var modeName = '{{ submission.language | default("python") }}';
-    var mode = getCodeMirrorMode(modeName);
+    const container = document.getElementById("submission-container");
+    const modeName =
+      (container && container.dataset.language) ||
+      (typeof submissionLanguage !== "undefined"
+        ? submissionLanguage
+        : "python");
+    const mode = getMode(modeName);
 
-    var editor = CodeMirror.fromTextArea(textarea, {
+    const editor = CodeMirror.fromTextArea(textarea, {
       lineNumbers: true,
       mode: mode,
       theme: "dracula",
@@ -86,20 +85,28 @@ function copySolution() {
       viewportMargin: Infinity,
     });
 
-    // Принудительный пересчёт высоты после рендеринга
-    setTimeout(function () {
+    setTimeout(() => {
       editor.refresh();
-      var scrollInfo = editor.getScrollInfo();
-      if (scrollInfo && scrollInfo.height) {
+      const scrollInfo = editor.getScrollInfo();
+      if (scrollInfo && scrollInfo.height)
         editor.setSize(null, scrollInfo.height);
-      }
     }, 10);
   }
 
+  // Вешаем обработчик копирования при загрузке
+  function bindCopyButton() {
+    const btn = document.querySelector(".btn-copy");
+    if (btn) btn.addEventListener("click", copySolution);
+  }
+
+  // Запуск после загрузки DOM
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initEditor);
+    document.addEventListener("DOMContentLoaded", () => {
+      initEditor();
+      bindCopyButton();
+    });
   } else {
     initEditor();
+    bindCopyButton();
   }
 })();
-editor.setSize(null, "auto");
