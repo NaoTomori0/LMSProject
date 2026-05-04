@@ -126,7 +126,9 @@
           }
         }
       });
-
+      
+      editor.setSize(null, 'auto');
+      
       // Автоподсказки при вводе букв/цифр/подчёркивания
       editor.on('inputRead', function(cm, change) {
         if (change.text.length === 1 && /[a-zA-Z0-9_]$/.test(change.text[0])) {
