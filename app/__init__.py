@@ -15,7 +15,7 @@ cache = Cache()
 
 load_dotenv()
 
-# Эти объекты создаются вне фабрики, чтобы их можно было импортировать
+# для импорта
 db = SQLAlchemy()
 migrate = Migrate()
 login = LoginManager()
