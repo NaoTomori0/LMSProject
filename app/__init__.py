@@ -53,7 +53,7 @@ def create_app(config_class=Config):
         client_kwargs={"scope": "user:email"},
     )
 
-    # Создать папку uploads, если её нет
+    # создать папку uploads если её нет
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
     # Контекстный процессор для переменной year
@@ -129,7 +129,7 @@ def create_app(config_class=Config):
         local_dt = dt + timedelta(minutes=offset)
         return local_dt.strftime("%d.%m.%Y %H:%M")
 
-    # Контекстный процессор, передающий смещение из куки
+    # контекстный процессор передающий смещение из куки
     @app.context_processor
     def inject_utc_offset():
         from flask import request
