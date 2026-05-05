@@ -163,3 +163,5 @@ migrations/
 uploads/
 instance/
 *.db
+.db-shm
+*.db-shm
